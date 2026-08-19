@@ -3,6 +3,19 @@ main = "src/index.ts"
 compatibility_date = "2025-01-15"
 compatibility_flags = ["nodejs_compat"]
 
+# Which Cloudflare account this deploys to.
+#
+# Pinned because this repo is deployed by people who belong to more than one
+# account. With two accounts and no account_id, wrangler stops and asks —
+# and answering wrong does not fail: it happily creates a SECOND Worker of
+# the same name in a personal account, on a different workers.dev subdomain,
+# with none of the secrets. Everything looks like it deployed. Nothing that
+# calls the real URL changes.
+#
+# c1c7af8b… is the shared account, the one serving production.
+account_id = "c1c7af8b8ba8b0f6249988e094a73b4c"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  A SEPARATE Worker from slay-money-api, and separate on purpose.
 #
