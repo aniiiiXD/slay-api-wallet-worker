@@ -1,0 +1,99 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Deploy the wallet provider Worker.
+#
+#  ON TAGS ONLY — never on push to main.
+#
+#  That is the entire point of this repo. The isolation from Slay's release
+#  cadence is worth exactly what the release discipline is worth, and a
+#  workflow that deployed every commit would rebuild the coupling this Worker
+#  was created to remove. Tag, then it ships:
+#
+#      git tag -a partner-v1.1.0 -m "..." && git push --tags
+#
+#  Required repository secrets (Settings → Secrets and variables → Actions):
+#
+#    CLOUDFLARE_API_TOKEN   Workers Scripts:Edit on the shared account.
+#                           A scoped token, not anyone's login — it must not
+#                           stop working because a person left or re-authed.
+#
+#    UPSTREAM_REPO_TOKEN    Read access to Swapso-App/slay-money-api, so the
+#                           drift check has something to compare against.
+#                           See "Drift" below before deciding to skip it.
+#
+#  The account is pinned in wrangler.toml, so no accountId is passed here and
+#  there is no second place for it to be wrong.
+# ─────────────────────────────────────────────────────────────────────────────
+name: deploy
+
+on:
+  push:
+    tags:
+      - "partner-v*"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-partner
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # ── Drift ───────────────────────────────────────────────────────────
+      #
+      # 59 files here are copies of files that also live in slay-money-api and
+      # are still being changed there. The check re-hashes both sides, and it
+      # FAILS rather than passes when it cannot find the upstream checkout —
+      # a check that skips itself is worse than no check, because it reports
+      # green for a comparison it never made.
+      #
+      # So upstream is checked out beside this repo, exactly as it sits on a
+      # developer's machine. If you decide not to grant this token, delete the
+      # `drift` step from `npm run verify` in package.json as a deliberate act
+      # and run it by hand before every tag. Do not leave it here failing and
+      # get used to a red build.
+      - name: Check out slay-money-api (for the drift check)
+        uses: actions/checkout@v4
+        with:
+          repository: Swapso-App/slay-money-api
+          token: ${{ secrets.UPSTREAM_REPO_TOKEN }}
+          path: upstream
+          ref: main
+
+      - name: Verify — typecheck, docs freshness, vendored drift
+        env:
+          SLAY_UPSTREAM: ${{ github.workspace }}/upstream
+        run: npm run verify
+
+      # The SDK is published separately and is not deployed by this job, but a
+      # tag that ships a Worker its own client disagrees with is not a release.
+      - name: SDK tests
+        working-directory: sdk
+        run: npm ci && npm test
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      # Proves the thing that just shipped answers, rather than trusting that
+      # a successful upload means a working Worker.
+      - name: Smoke test
+        run: |
+          URL=https://slay-api-wallet-providers.slay-money-api.workers.dev
+          echo "GET $URL/health"
+          curl -fsS --retry 5 --retry-delay 3 --retry-all-errors "$URL/health"
+          echo
+          echo "GET $URL/api/v1/balance (expect 401)"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/v1/balance")
+          test "$code" = "401" || { echo "expected 401, got $code"; exit 1; }
+          echo "ok"
