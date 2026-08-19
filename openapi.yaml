@@ -19,7 +19,7 @@ info:
   description: |
     Two ways in, for two different jobs:
 
-    **Agent keys (`/api/v1`)** — server-to-server. A key belongs to one wallet
+    **API keys (`/api/v1`)** — server-to-server. A key belongs to one wallet
     and carries mandatory restrictions: what it may do, how much it may move per
     transaction, which recipients it may pay, which IPs may use it. There is no
     unrestricted key.
@@ -142,7 +142,7 @@ servers:
 # same Canton ledger; different deployment and a much slower release cadence.
 
 security:
-  - AgentKey: []
+  - ApiKey: []
 
 tags:
   - name: Wallet
@@ -496,10 +496,10 @@ paths:
 
 components:
   securitySchemes:
-    AgentKey:
+    ApiKey:
       type: http
       scheme: bearer
-      x-displayName: Agent key
+      x-displayName: API key
       description: |
         Every `/api/v1` request carries one, as a bearer token:
 
@@ -510,6 +510,10 @@ components:
         A key belongs to exactly one wallet and can never reach another. It is
         hashed on arrival, so the value is shown once at creation and cannot be
         recovered — if it is lost, rotate the key rather than hunting for it.
+
+        The endpoint that mints one is `POST /api/agents`, and a few internals
+        still use that older word. Same credential — "API key" is the name that
+        matters to you.
 
         Keys are not interchangeable with sign-in. A session cookie will not
         authenticate here, and a key will not authenticate the routes a signed-in

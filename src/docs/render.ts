@@ -396,6 +396,21 @@ function renderOperation(
 
 /* ────────── page ────────── */
 
+/**
+ * Slay's mark, inlined as a data URI.
+ *
+ * The header used to be a bare accent-coloured square — a placeholder that
+ * read as "we did not get to this yet" on a page partners are asked to trust
+ * with money. This is the real icon, the same one the dashboard and the
+ * extension use, so the reference looks like it belongs to the product.
+ *
+ * Inlined rather than linked because the page is generated at build time and
+ * served by a Worker with no static assets: an <img src="/logo.png"> here
+ * would be a 404 in a header, which is worse than the placeholder was. 1.7KB.
+ */
+const SLAY_MARK =
+  "data:image/png;base64,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";
+
 export function renderDocs(input: unknown): string {
   const doc = input as Doc;
   const info = doc.info ?? {};
@@ -530,6 +545,7 @@ export function renderDocs(input: unknown): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(info.title ?? "API")}</title>
+<link rel="icon" type="image/png" href="${SLAY_MARK}">
 <meta name="description" content="${esc(info.summary ?? "")}">
 <style>
 /* ── tokens: measured from a live GitBook site, not estimated ───────────── */
@@ -567,7 +583,7 @@ header{position:sticky;top:0;z-index:40;background:var(--hdr);
 .hrow{height:64px;display:flex;align-items:center;justify-content:space-between;
   padding:0 var(--gut)}
 .brand{display:flex;align-items:center;gap:10px;font-size:16px;line-height:20px}
-.mark{width:22px;height:22px;border-radius:6px;background:var(--acc);flex:none}
+.mark{width:22px;height:22px;border-radius:6px;flex:none;display:block}
 .search{width:224px;height:39px;border:1px solid var(--line);border-radius:12px;
   background:var(--bg);display:flex;align-items:center;gap:8px;padding:0 10px}
 .search input{all:unset;flex:1;font:14px var(--sans);color:var(--fg);min-width:0}
@@ -759,7 +775,7 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding-top:24px;
 <body>
 <header>
   <div class="hrow">
-    <a class="brand" href="#overview"><span class="mark"></span>${esc(info.title ?? "API")}</a>
+    <a class="brand" href="#overview"><img class="mark" src="${SLAY_MARK}" alt="" width="22" height="22">${esc(info.title ?? "API")}</a>
     <div class="search">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <circle cx="7" cy="7" r="4.5" stroke="#BDC1C0" stroke-width="1.5"/>

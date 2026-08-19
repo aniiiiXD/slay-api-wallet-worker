@@ -137,8 +137,8 @@
     {
       "path": "src/docs/render.ts",
       "upstream": "src/docs/render.ts",
-      "localSha": "ab7e0fef5fb0a0e21d703f72d9182e3aadfe7f71bd1908107589ff52a51897bd",
-      "upstreamSha": "ab7e0fef5fb0a0e21d703f72d9182e3aadfe7f71bd1908107589ff52a51897bd"
+      "localSha": "d5481c91f7278ba816cdeaefc59bae98c3c2719013bbbe56a02482116dee7faf",
+      "upstreamSha": "d5481c91f7278ba816cdeaefc59bae98c3c2719013bbbe56a02482116dee7faf"
     },
     {
       "path": "src/docs/routes.ts",
@@ -227,8 +227,8 @@
     {
       "path": "src/middleware/agentAuth.ts",
       "upstream": "src/middleware/agentAuth.ts",
-      "localSha": "c8cdb4be82b646fc2cf5881e338b07ef81217362799e3ce3365fd3113eb729a6",
-      "upstreamSha": "c8cdb4be82b646fc2cf5881e338b07ef81217362799e3ce3365fd3113eb729a6"
+      "localSha": "f200e22451d5aa61d75fa3ed3339515ec35a70f09318f612c0264d53f0e0336b",
+      "upstreamSha": "f200e22451d5aa61d75fa3ed3339515ec35a70f09318f612c0264d53f0e0336b"
     },
     {
       "path": "src/oracle-markets/oracle.ts",
@@ -357,6 +357,6 @@
       "upstreamSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086"
     }
   ],
-  "acceptedAt": "2026-08-19T10:13:27.559Z",
+  "acceptedAt": "2026-08-19T17:51:58.694Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }

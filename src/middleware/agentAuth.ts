@@ -91,7 +91,7 @@ export const agentAuth = createMiddleware<{
     return c.json(
       {
         error:
-          "invalid_key — send the agent key as `Authorization: Bearer sk_live_…`. Session cookies do not authenticate here.",
+          "invalid_key — send the API key as `Authorization: Bearer sk_live_…`. Session cookies do not authenticate here.",
         code: "invalid_key",
       },
       401
