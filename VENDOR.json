@@ -269,8 +269,8 @@
     {
       "path": "src/splice/amulet.ts",
       "upstream": "src/splice/amulet.ts",
-      "localSha": "e990941d23b2b2a4ee7e38301c94fa52dd1fb60b84c622df5670f1721aaa9f9f",
-      "upstreamSha": "e990941d23b2b2a4ee7e38301c94fa52dd1fb60b84c622df5670f1721aaa9f9f"
+      "localSha": "9d1df685990ec59c71e1ee3beafb0ef72ba72caba656f93c2c0212f76cd65fa7",
+      "upstreamSha": "9d1df685990ec59c71e1ee3beafb0ef72ba72caba656f93c2c0212f76cd65fa7"
     },
     {
       "path": "src/splice/client.ts",
@@ -347,8 +347,8 @@
     {
       "path": "src/wallet/service.ts",
       "upstream": "src/wallet/service.ts",
-      "localSha": "e7f87ad7e43563978c772114ca2ac19431b4d8afcbda5730f9ec6dc5a7a0327c",
-      "upstreamSha": "e7f87ad7e43563978c772114ca2ac19431b4d8afcbda5730f9ec6dc5a7a0327c"
+      "localSha": "87ca7854791647cbe9b7de66590213445d17937224baecbc7cca59a554140a22",
+      "upstreamSha": "87ca7854791647cbe9b7de66590213445d17937224baecbc7cca59a554140a22"
     },
     {
       "path": "scripts/gen-openapi.mjs",
@@ -357,6 +357,6 @@
       "upstreamSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086"
     }
   ],
-  "acceptedAt": "2026-08-19T18:28:55.673Z",
+  "acceptedAt": "2026-08-19T19:33:15.907Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }

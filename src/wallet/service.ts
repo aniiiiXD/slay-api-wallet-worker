@@ -867,6 +867,18 @@ async function doSend(
     // transferAmulet retry fallback). Guards against phantom fees: DB charged
     // but slay-fees received nothing.
     let feeChargedMicro = 0;
+    /* What the recipient actually received.
+     *
+     * `netMicro` is what we intended to send them — amount minus a fee we
+     * hoped to collect. If the fee output is stripped during the retry, the
+     * ledger hands that fee back to the recipient in the same submission, and
+     * they receive the full amount instead. Which happened is knowable only
+     * after the call, so every balance, watermark and row below reads this
+     * rather than `netMicro`.
+     *
+     * Either way the sender is debited `recipientMicro + feeChargedMicro`,
+     * which is always exactly the amount they asked to send. */
+    let recipientMicro = netMicro;
     try {
       // transferAmulet submits a Daml AmuletRules_Transfer via the JSON
       // Ledger API (auth = ledger-user JWT), so it accepts raw party IDs
@@ -885,6 +897,8 @@ async function doSend(
       // The retry fallback can drop the fee 2nd-output; only charge the fee if
       // it truly landed on-chain.
       feeChargedMicro = r.feeApplied ? feeMicro : 0;
+      // Fee stripped → it went to the recipient, not to slay-fees.
+      recipientMicro = r.feeApplied ? netMicro : amountMicro;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(
@@ -914,12 +928,12 @@ async function doSend(
     // what left their amulet on-chain.
     await db
       .update(schema.wallets)
-      .set({ balance: sql`${schema.wallets.balance} - ${netMicro + feeChargedMicro}` })
+      .set({ balance: sql`${schema.wallets.balance} - ${recipientMicro + feeChargedMicro}` })
       .where(eq(schema.wallets.id, fromWallet.id));
 
     await db
       .update(schema.wallets)
-      .set({ balance: sql`${schema.wallets.balance} + ${netMicro}` })
+      .set({ balance: sql`${schema.wallets.balance} + ${recipientMicro}` })
       .where(eq(schema.wallets.id, toWallet.id));
 
     // Deposit-mirror watermark sync — ONLY when the transfer SETTLED on-chain.
@@ -932,11 +946,11 @@ async function doSend(
     if (chainTxRefType === "chain_tx") {
       await db
         .update(schema.wallets)
-        .set({ onChainWatermark: sql`${schema.wallets.onChainWatermark} + ${netMicro}` })
+        .set({ onChainWatermark: sql`${schema.wallets.onChainWatermark} + ${recipientMicro}` })
         .where(and(eq(schema.wallets.id, toWallet.id), isNotNull(schema.wallets.onChainWatermark)));
       await db
         .update(schema.wallets)
-        .set({ onChainWatermark: sql`${schema.wallets.onChainWatermark} - ${netMicro + feeChargedMicro}` })
+        .set({ onChainWatermark: sql`${schema.wallets.onChainWatermark} - ${recipientMicro + feeChargedMicro}` })
         .where(and(eq(schema.wallets.id, fromWallet.id), isNotNull(schema.wallets.onChainWatermark)));
     }
 
@@ -945,11 +959,12 @@ async function doSend(
       walletId: fromWallet.id,
       userId: fromUserId,
       type: "send",
-      // Net that reached the recipient (fee taken from amount). Send row + the
-      // house_fee row below sum to the full amount debited, so a user's tx rows
-      // reconcile to their balance change. In the free tier feeChargedMicro=0 so
-      // netMicro == amountMicro (full amount).
-      amount: -netMicro,
+      // What actually reached the recipient. Send row + the house_fee row below
+      // sum to the full amount debited, so a user's tx rows reconcile to their
+      // balance change. In the free tier — and when the fee output was stripped
+      // and returned to the recipient — feeChargedMicro is 0 and this is the
+      // full amount.
+      amount: -recipientMicro,
       status: "confirmed",
       counterpartyHandle: recipient.displayHandle,
       // Tagged memo carries the [idem:xxx] suffix so we can dedupe a
@@ -967,7 +982,7 @@ async function doSend(
         walletId: toWallet.id,
         userId: recipient.userId,
         type: "receive",
-        amount: netMicro,
+        amount: recipientMicro,
         status: "confirmed",
         counterpartyHandle: senderHandle,
         // Recipient's row uses the clean memo — the idem tag is the

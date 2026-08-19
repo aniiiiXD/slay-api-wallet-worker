@@ -49,10 +49,21 @@ unrelated. See [Migrations](#migrations).
 Isolation protects partners from the 71% of the codebase they never touch. It
 does not protect them from a bug in `send()`.
 
-The live example, at the time this repo was created: a transfer's amount is
-reduced by a fee that is then never collected — the recipient is short-changed
-and no `house_fee` row is written. That bug is in the partner closure. A
+The live example, at the time this repo was created: a transfer's amount was
+reduced by a fee that was then never collected — the recipient short-changed
+and no `house_fee` row written. That bug was in the partner closure, and a
 separate Worker would not have prevented it.
+
+**Fixed 2026-08-20**, in `splice/amulet.ts`. When the retry fallback strips
+the fee output, the fee is now added back to the recipient in the same
+submission: if Slay cannot take its fee, it does not get to keep it out of the
+customer's transfer either. Sweeping it in a second transfer was the obvious
+alternative and is the wrong one — a transfer burns about 5.8 KB of
+synchronizer traffic, roughly $0.35, to recover a fee worth about $0.12.
+
+The invariant is now asserted upstream in `test/send-fee-invariant.test.mjs`:
+what the recipient receives plus what slay-fees collects equals what the sender
+asked to send, on both branches.
 
 What protects partners from that class of bug is **release cadence**, not
 architecture: this Worker deploys from a reviewed tag, after the same code has

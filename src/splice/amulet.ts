@@ -1160,6 +1160,11 @@ export async function transferAmulet(
 
   let featured = featuredOverride !== undefined ? featuredOverride : walletFeatured(env);
   let feeOut = feeOutput ?? null;
+  /* The caller subtracts the fee from the amount before calling — that is what
+   * keeps a whole-balance send inside a single amulet. So if the fee output is
+   * stripped below, the subtraction has to be undone here, in the same
+   * submission. See the strip site for why. */
+  let recipientCc = amountCc;
   let lastErr: unknown = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     try {
@@ -1167,7 +1172,7 @@ export async function transferAmulet(
         env,
         senderParty,
         recipientParty,
-        amountCc,
+        recipientCc,
         memo,
         amuletRulesInfo,
         rounds,
@@ -1206,7 +1211,31 @@ export async function transferAmulet(
         // house_fee. Previously both were dropped together, which silently
         // stripped the fee while the caller still charged it.
         if (featured) { featured = null; continue; }
-        if (feeOut) { feeOut = null; continue; }
+        if (feeOut) {
+          /* Dropping the fee output used to short-change the recipient.
+           *
+           * The caller hands us `amount − fee` for the recipient and the fee
+           * as a second output. Strip that output and the next attempt still
+           * sends `amount − fee` — so the transfer settles with the recipient
+           * short by the fee, the sender keeping it, and nobody collecting
+           * anything. Every ledger agreed with itself, which is precisely why
+           * it survived: the shortfall was invisible from any single row.
+           *
+           * Sweeping the fee afterwards in its own transfer was the obvious
+           * fix and is the wrong one — a transfer burns roughly 5.8 KB of
+           * synchronizer traffic, about $0.35 at the governance price, to
+           * recover a fee worth about $0.12. It would lose money three times
+           * over on every occurrence.
+           *
+           * So the fee goes back to the recipient instead, in this same
+           * submission. If Slay cannot take its fee, Slay does not get to
+           * keep it out of the customer's transfer either. `feeApplied`
+           * comes back false, the caller books no house_fee, and the amounts
+           * on both sides are what the sender actually asked for.          */
+          recipientCc += feeOut.amountCc;
+          feeOut = null;
+          continue;
+        }
         throw err;
       }
 
