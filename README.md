@@ -9,7 +9,8 @@ cannot break a partner.
 │  /api/v1/balance             │   │  markets, rewards, swaps,    │
 │  /api/v1/transactions        │   │  admin, prediction, p2p,     │
 │  /api/v1/transfers           │   │  dashboard, extension …      │
-│  /api/v1/transfers/{id}      │   │  ~421 handlers               │
+│  /api/v1/transfers/{id}      │   │  ~420 handlers               │
+│  /api/v1/config              │   │                              │
 │  /docs  /openapi.json        │   │  ~25 cron jobs               │
 │  deploys from a tag, rarely  │   │  deploys continuously        │
 └──────────────┬───────────────┘   └───────────────┬──────────────┘
@@ -20,7 +21,7 @@ cannot break a partner.
 
 ## Why this repo exists
 
-The main Worker serves ~425 handlers. Partners call four of them. Measured
+The main Worker serves ~425 handlers. Partners call five of them. Measured
 across the last 199 commits that touched `src/`:
 
 | | |
@@ -102,7 +103,8 @@ same tables — that is the entire hazard.
 
 ## Scope
 
-Basic wallet. Balance, history, send, transfer lookup. Nothing else.
+Basic wallet. Balance, history, send, transfer lookup, and a read-only view of
+what the account is configured for. Nothing else.
 
 Every feature added here is a feature that can break here, which defeats the
 reason it was built. New surface belongs on the main Worker until it has been

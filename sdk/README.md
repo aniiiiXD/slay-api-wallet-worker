@@ -88,10 +88,29 @@ catch (e) {
 | `UnknownOutcomeError` | no response | Only with the same `clientTxId` |
 | `SlayError` | everything else, with a `.code` | `isRetryable(e)` |
 
+The `.code` values that matter, since three of them are 403 and need opposite
+handling:
+
+| `code` | Means | What to do |
+|---|---|---|
+| `trading_not_approved` | the **account** isn't cleared | wait for approval |
+| `capability_missing` | the key lacks `tx:write` | mint a new key — capabilities can't be widened |
+| `recipient_not_allowed` | `to` isn't in this key's allowlist | fix the recipient, or the key |
+| `token_not_enabled` | that asset isn't enabled for the account | check `getConfig()` |
+| `ip_not_allowed` | calling from an IP the key doesn't permit | call from an allowed host |
+| `frozen` | the key is frozen — **all** routes, reads included | unfreeze it; retrying won't help |
+| `limit_exceeded` | a spend cap, not a request rate | per-tx: never retries; per-day: clears 00:00 UTC |
+
 `NotApprovedError` is worth knowing about: a perfectly valid key carrying
 `tx:write` still gets it until the account is approved for programmatic
 trading. It's checked per request, so approval applies to existing keys with
 nothing reissued. Reads keep working throughout.
+
+Approval carries **account ceilings** — a max per transaction and a max per
+UTC day. A key's own caps may be lower and never higher, and if an operator
+lowers a ceiling later, keys already issued are clamped down to it
+immediately. So a key that worked yesterday can legitimately have a smaller
+cap today; read the cap from the error rather than caching it.
 
 ---
 
@@ -137,6 +156,7 @@ new SlayWallet({ apiKey, baseUrl?, timeoutMs?, fetch? })
 .createTransfer(input)           → Transfer     // raw; you handle retries
 .sendOnce(input, attempts = 3)   → Transfer     // resolves unknown outcomes
 .getTransfer(clientTxId)         → Transfer | null
+.getConfig()                     → ProviderConfig  // enabled assets + your fee
 .health()                        → { ok, db, ms }
 ```
 
@@ -144,6 +164,15 @@ new SlayWallet({ apiKey, baseUrl?, timeoutMs?, fetch? })
 applies, comes out of the amount — so the recipient receives that figure
 rather than the number you sent. Reconcile against it, never against your own
 request.
+
+`Transfer.partnerFeeCc` is **your** take, and `partnerFeeCollected` is always
+`false` today: the figure is computed and returned so you can bill against it,
+but no ledger movement has happened yet. Treat it as an invoice line, not as
+money received.
+
+`getConfig()` is worth calling at startup rather than per request — it changes
+when someone edits it in the dashboard, not on its own. It is read-only: a key
+cannot widen the assets it may touch or change the fee it charges.
 
 ## Development
 

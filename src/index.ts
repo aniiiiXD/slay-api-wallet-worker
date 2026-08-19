@@ -6,7 +6,7 @@
  *  WHY THIS EXISTS
  *
  *  The main Worker serves ~425 handlers: markets, rewards, swaps, admin,
- *  prediction, the dashboard, the extension. Partners use four of them.
+ *  prediction, the dashboard, the extension. Partners use five of them.
  *  Measured over the last 199 commits that touched src/, 123 — 61% — changed
  *  nothing a partner calls, yet every one of them reshipped the code serving
  *  partners. That is the risk this Worker removes: partner traffic no longer
@@ -90,7 +90,7 @@ app.get("/health", async (c) => {
   }
 });
 
-/*  The entire partner surface. Four handlers.
+/*  The entire partner surface. Five handlers.
  *
  *  Mounted on the root app with no middleware above it beyond CORS and the
  *  logger. There is deliberately no banGuard, no appLockdown, no session
@@ -106,8 +106,10 @@ app.notFound((c) =>
     {
       error:
         "Not found. This Worker serves the wallet provider API only: " +
-        "/api/v1/balance, /api/v1/transactions, /api/v1/transfers. " +
-        "Everything else lives on the main Slay API.",
+        "/api/v1/balance, /api/v1/transactions, /api/v1/transfers, " +
+        "/api/v1/transfers/{clientTxId}, /api/v1/config. " +
+        "Everything else — issuing keys, applying for approval, prices — " +
+        "lives on the main Slay API, not here. See /docs.",
       code: "not_found",
     },
     404

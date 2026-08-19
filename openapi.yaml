@@ -30,11 +30,25 @@ info:
     and is discovered at runtime via `canton:announceProvider`. Use
     `@canton-network/dapp-sdk`; nothing in this document is needed for that.
 
+    ## Base URLs — there are two, and they are different Workers
+
+    | | |
+    |---|---|
+    | This API | `https://slay-api-wallet-providers.slay-money-api.workers.dev` |
+    | Everything else | `https://slay-money-api.slay-money-api.workers.dev` |
+
+    Only `/api/v1` lives here. Issuing a key, applying for approval, prices,
+    and every other Slay route are on the main API and are **not** reachable on
+    this host — they answer 404 with a message saying so. The split is
+    deliberate: this Worker deploys from a reviewed tag on a slow cadence, so
+    Slay shipping a feature cannot move your traffic.
+
     ## Getting a key
 
-    Issue one from **Dashboard → Build → API keys**. Only a signed-in human can:
-    a key cannot create another key, so a leaked one cannot quietly issue itself
-    successors.
+    Issue one from **Dashboard → Build → API keys** (`POST /api/agents` on the
+    main API, authenticated with a signed-in session — not with a key, and not
+    on this host). Only a signed-in human can: a key cannot create another key,
+    so a leaked one cannot quietly issue itself successors.
 
     The screen is also where you freeze a key, rotate it, or revoke it. Rotation
     creates the successor first and leaves the old key valid for an hour, so a
@@ -67,6 +81,26 @@ info:
     programmatically. Reads keep working. This is checked per request rather
     than baked into the key, so suspending an account stops every key it owns
     at once, with no propagation delay and no key hunting.
+
+    Getting cleared is a two-step thing, and minting a key is only the first:
+
+    1. **Apply** — `POST /api/trading/apply` on the main API (session, not a
+       key) with your use case and expected monthly volume. State becomes
+       `pending`.
+    2. **An operator decides**, and an approval always carries two **account
+       ceilings**: a maximum per transaction and a maximum per UTC day.
+
+    Those ceilings bound the account, not one key. A key's own
+    `perTransactionCc`/`perDayCc` may be lower and never higher — asking for
+    more at creation silently stores the ceiling instead, and the response
+    tells you what was actually saved. If an operator later **lowers** a
+    ceiling, keys already issued are clamped down to it immediately; a limit
+    that only applied to future keys would not be a limit.
+
+    `GET /api/trading/status` (main API, session) returns the current state and
+    the ceilings. A rejected application can be resubmitted. A **suspended**
+    one cannot — re-applying is refused, because a form should not be able to
+    erase an operator's decision.
 
     **`429 limit_exceeded`** — a spend cap, not a request rate. Despite the
     status, backing off does not help: `perTransactionCc` will never accept
@@ -115,10 +149,10 @@ tags:
     description: Balances and history for the wallet a key belongs to.
   - name: Transfers
     description: Moving CC. Requires the `tx:write` capability.
-  - name: Keys
-    description: Creating and managing agent keys. Uses a user session, not a key.
+  - name: Provider
+    description: What this account is configured for. Read-only.
   - name: Public
-    description: No authentication.
+    description: No authentication. Use these for liveness and readiness checks.
 
 paths:
   /api/v1/balance:
@@ -163,6 +197,7 @@ paths:
                     example: "slay-money::12206cab144ff69861e34be8671ece597d978fd70c2e1d6fb2a5da8f17336796ef32"
         "401": { $ref: "#/components/responses/InvalidKey" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Frozen" }
         "429": { $ref: "#/components/responses/RateLimited" }
 
   /api/v1/transactions:
@@ -195,6 +230,7 @@ paths:
                     items: { $ref: "#/components/schemas/Transaction" }
         "401": { $ref: "#/components/responses/InvalidKey" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Frozen" }
         "429": { $ref: "#/components/responses/RateLimited" }
 
   /api/v1/transfers:
@@ -271,17 +307,23 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "401": { $ref: "#/components/responses/InvalidKey" }
+        "409": { $ref: "#/components/responses/Frozen" }
         "403":
           description: |
-            Three different refusals share this status, separated by `code`:
+            Four different refusals share this status, and each has its own
+            `code`. Branch on `code`, never on the status alone:
 
             - `trading_not_approved` — **the account is not cleared to move
               money programmatically.** A valid key with `tx:write` still gets
               this. It is re-checked on every request rather than stamped onto
               the key, so suspending an account disables all of its keys at
-              once. Reads keep working.
-            - `forbidden` — the key does not carry `tx:write`.
-            - `forbidden` — the recipient is not in `allowedRecipients`.
+              once. Reads keep working. Not retryable.
+            - `capability_missing` — the key does not carry `tx:write`. Mint a
+              new key; a key's capabilities cannot be widened after creation.
+            - `recipient_not_allowed` — `to` is not in this key's
+              `allowedRecipients`.
+            - `token_not_enabled` — the asset is not enabled for this account.
+              See `GET /api/v1/config`.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -317,108 +359,127 @@ paths:
         "401": { $ref: "#/components/responses/InvalidKey" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
-  /api/agents:
-    post:
-      tags: [Keys]
-      summary: Create an agent key
+  /api/v1/config:
+    get:
+      tags: [Provider]
+      summary: What this account is configured for
       description: |
-        Authenticated with a **user session**, not an agent key — a key cannot
-        mint another key.
+        The assets this account may move and the fee it adds on top of Slay's,
+        as an operator configured them. Any valid key can read it; no key can
+        change it.
 
-        `restrictions` is required and has no default. There is no unrestricted
-        key and no "add limits later": `tx:write` without `limits.perTransactionCc`
-        is rejected outright.
+        Read-only on purpose. A key that could widen the assets it may touch,
+        or lower the fee it charges, would not be a capped credential — those
+        are account-level settings a signed-in human makes in the dashboard.
 
-        ⚠️ `secret` is returned **once**, here, and is never retrievable again.
-        It is hashed on the way in. If it is lost, delete the key and make
-        another.
-      operationId: createAgentKey
-      security:
-        - SessionCookie: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, restrictions]
-              properties:
-                name:
-                  type: string
-                  example: "payouts-worker"
-                restrictions:
-                  type: object
-                  properties:
-                    capabilities:
-                      type: array
-                      items:
-                        type: string
-                        enum: [balance:read, tx:read, tx:write]
-                    limits:
-                      type: object
-                      properties:
-                        perTransactionCc:
-                          type: string
-                          description: |
-                            Largest single transfer. Required whenever
-                            `tx:write` is granted — 422 without it.
-                          example: "25"
-                        perDayCc:
-                          type: string
-                          description: |
-                            Total per UTC day. Also required for `tx:write`,
-                            and also 422 without it. Reserved before the
-                            transfer runs, so a failure leaves the day
-                            overstated rather than understated.
-                          example: "250"
-                    allowedRecipients:
-                      type: [array, "null"]
-                      items: { type: string }
-                      description: Null means any recipient.
-                    allowedIps:
-                      type: [array, "null"]
-                      items: { type: string }
+        Absence of configuration means defaults: every supported asset enabled,
+        no partner fee. An account that has never opened the settings screen
+        behaves exactly as it did before the screen existed.
+      operationId: getProviderConfig
       responses:
-        "201":
-          description: Created. The only time `secret` is shown.
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tokens, fee]
+                properties:
+                  tokens:
+                    type: array
+                    description: |
+                      Assets enabled for this account. `POST /api/v1/transfers`
+                      moves CC only today; anything else here is enabled and
+                      not yet reachable through this API.
+                    items:
+                      type: string
+                      enum: [cc, cbtc, ceth, tusd, hecto]
+                    example: ["cc", "cbtc"]
+                  fee:
+                    type: object
+                    description: |
+                      **Your** take, not Slay's. Slay's base fee is charged by
+                      the send path regardless and is not represented here —
+                      nothing on this object can reduce, waive or redirect it.
+                    required: [mode, active]
+                    properties:
+                      mode:
+                        type: string
+                        enum: [none, flat, bps]
+                      flatCc:
+                        type: [string, "null"]
+                        description: Used when `mode` is `flat`. Decimal string.
+                        example: "0.25"
+                      bps:
+                        type: [integer, "null"]
+                        description: Basis points (1 bp = 0.01%). Used when `mode` is `bps`.
+                        example: 250
+                      maxCc:
+                        type: [string, "null"]
+                        description: |
+                          Ceiling on your take per send. Only meaningful for
+                          `bps` — a percentage of a large transfer is a large
+                          number, and 250bp of a 1000 CC send is 25 CC, which
+                          is rarely what anyone means by "2.5%".
+                        example: "5"
+                      active:
+                        type: boolean
+                        description: |
+                          Whether a take is actually payable. `mode` alone is
+                          not enough: a fee with no destination party is not
+                          charged at all, so this is false even when `mode` is
+                          `flat` or `bps`.
+                  freeTxnsPerDay:
+                    type: [integer, "null"]
+                    description: Override for the free daily send allowance. Null = the global default.
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "409": { $ref: "#/components/responses/Frozen" }
+
+  /health:
+    get:
+      tags: [Public]
+      summary: Readiness — can this API actually serve a request
+      description: |
+        Checks the shared database, which is what a request needs. **Alert on
+        this, not on `/`.** A partner watching only `/` would page nobody
+        during a database outage, because the Worker itself is fine.
+
+        Returns 503 with `db: "down"` when Postgres is unreachable, so the
+        answer to "is it us or you" does not require a support ticket.
+      operationId: getHealth
+      security: []
+      responses:
+        "200":
+          description: Ready.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  id: { type: string }
-                  name: { type: string }
-                  prefix:
-                    type: string
-                    description: Stored in clear so a key can be identified in logs.
-                    example: "sk_live_a1b2c3"
-                  secret:
-                    type: string
-                    description: Shown once. Never retrievable.
-                    example: "sk_live_a1b2c3_9f4e7d2c8b1a6503e4f7a9d2"
+                  ok: { type: boolean, example: true }
+                  db: { type: string, example: "up" }
+                  ms: { type: integer, description: Database round-trip, milliseconds. }
+        "503":
+          description: Running, but cannot reach the database.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, example: false }
+                  db: { type: string, example: "down" }
+                  ms: { type: integer }
 
-  /api/prices/{asset}:
+  /:
     get:
       tags: [Public]
-      summary: USD spot price
+      summary: Liveness
       description: |
-        No authentication.
-
-        `usd` is nullable and that is not a formality: it is null when the
-        upstream has never been reached, precisely so a client shows "—" rather
-        than inventing a floor price. Anything multiplying a balance by this
-        must handle null instead of coercing to zero, which would render a real
-        holding as $0.00.
-
-        `stale: true` means the value is being served from cache after an
-        upstream failure. It is usable, but say so.
-      operationId: getPrice
+        Answers without touching the database, so it stays up during an outage
+        — which is exactly when you need to tell "the Worker is down" apart
+        from "the database is down". Pair it with `/health`, never replace it.
+      operationId: getRoot
       security: []
-      parameters:
-        - name: asset
-          in: path
-          required: true
-          schema: { type: string, enum: [cc, cbtc, ceth] }
       responses:
         "200":
           description: OK
@@ -427,11 +488,11 @@ paths:
               schema:
                 type: object
                 properties:
-                  usd:
-                    type: [number, "null"]
-                    example: 0.09202
-                  asOf: { type: string, format: date-time }
-                  stale: { type: boolean }
+                  name: { type: string, example: "slay-api-wallet-providers" }
+                  status: { type: string, example: "ok" }
+                  surface: { type: string, example: "wallet" }
+                  docs: { type: string, example: "/docs" }
+                  openapi: { type: string, example: "/openapi.json" }
 
 components:
   securitySchemes:
@@ -472,6 +533,16 @@ components:
         one, so that a compromised key cannot quietly issue itself successors.
 
   responses:
+    Frozen:
+      description: |
+        `frozen` — this key has been frozen, by its owner or by an operator.
+
+        It affects **every** route, reads included, which is what separates it
+        from `trading_not_approved`. Freezing is reversible; retrying is not
+        the fix, unfreezing is.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     InvalidKey:
       description: Missing or unrecognised key.
       content:
@@ -511,14 +582,20 @@ components:
             [
               bad_request,
               client_tx_id_required,
+              unsupported_token,
               invalid_key,
-              forbidden,
+              capability_missing,
+              ip_not_allowed,
+              recipient_not_allowed,
+              token_not_enabled,
               trading_not_approved,
               not_found,
+              frozen,
+              limit_exceeded,
+              forbidden,
               conflict,
               gone,
               unprocessable,
-              limit_exceeded,
               rate_limited,
               unavailable,
               internal,
@@ -566,5 +643,28 @@ components:
             recipient receives this figure rather than the number you sent.
             Reconcile against this, never against your request.
           example: "1.894700"
+        partnerFeeCc:
+          type: string
+          description: |
+            Your own take on this transfer, computed from `GET /api/v1/config`.
+            `"0.000000"` when you have no fee configured, or when it has no
+            destination party.
+
+            **Reported, not yet moved** — see `partnerFeeCollected`.
+          example: "0.075000"
+        partnerFeeCollected:
+          type: boolean
+          description: |
+            Always `false` today, and stated in the response rather than left
+            for you to discover in reconciliation.
+
+            The figure above is computed and returned so you can bill against
+            it, but no ledger movement has happened: collecting it means adding
+            an output to the Slay send path, and that path has an open defect
+            where a dropped fee output leaves the amount already committed.
+            Building a second fee mechanism on top of that would reproduce the
+            bug once per partner. Treat `partnerFeeCc` as an invoice line, not
+            as money received.
+          example: false
         id: { type: string }
         createdAt: { type: string, format: date-time }

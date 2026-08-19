@@ -13,7 +13,7 @@ export const spec: unknown = {
     "title": "Slay Money API",
     "version": "1.0.0",
     "summary": "Programmatic access to a Slay wallet on the Canton Network.",
-    "description": "Two ways in, for two different jobs:\n\n**Agent keys (`/api/v1`)** — server-to-server. A key belongs to one wallet\nand carries mandatory restrictions: what it may do, how much it may move per\ntransaction, which recipients it may pay, which IPs may use it. There is no\nunrestricted key.\n\n**CIP-0103** — browser dApps. Not described here because it is not an HTTP\nAPI: a dApp talks to the Slay browser extension, which implements\n[CIP-0103](https://github.com/canton-foundation/cips/blob/main/cip-0103/cip-0103.md)\nand is discovered at runtime via `canton:announceProvider`. Use\n`@canton-network/dapp-sdk`; nothing in this document is needed for that.\n\n## Getting a key\n\nIssue one from **Dashboard → Build → API keys**. Only a signed-in human can:\na key cannot create another key, so a leaked one cannot quietly issue itself\nsuccessors.\n\nThe screen is also where you freeze a key, rotate it, or revoke it. Rotation\ncreates the successor first and leaves the old key valid for an hour, so a\ndeployment does not need downtime. Freezing is the reversible one — there is\na **Freeze all** control for the moment you are not yet sure what leaked.\n\nAt creation you choose exactly what it may do. There is no unrestricted\nkey and no \"tighten it later\":\n\n| Capability | Grants |\n|---|---|\n| `balance:read` | `GET /api/v1/balance` |\n| `tx:read` | `GET /api/v1/transactions`, `GET /api/v1/transfers/{id}` |\n| `tx:write` | `POST /api/v1/transfers` — moving money |\n\n`tx:write` additionally **requires** both spend caps, `perTransactionCc`\nand `perDayCc`. A key requesting it without them is rejected at creation\nwith 422, not accepted and warned about. You may also pin it to specific\nrecipients and to specific source IPs.\n\nThe secret is shown **once**, at creation, and hashed on the way in. There\nis no endpoint that returns it later. Lost means rotate.\n\n## Two things a valid key still cannot do\n\nA key that authenticates correctly can still be refused, and the two\nreasons look nothing alike:\n\n**`403 trading_not_approved`** — the account is not cleared to move money\nprogrammatically. Reads keep working. This is checked per request rather\nthan baked into the key, so suspending an account stops every key it owns\nat once, with no propagation delay and no key hunting.\n\n**`429 limit_exceeded`** — a spend cap, not a request rate. Despite the\nstatus, backing off does not help: `perTransactionCc` will never accept\nthat amount, and `perDayCc` clears at 00:00 UTC. The message names which\ncap was hit and what has already been spent.\n\n## Amounts are decimal strings\n\n`amountCc` goes over the wire as a **string** — `\"3.5\"`, not `3.5`. CC has\nsix decimal places and IEEE-754 does not represent them exactly. A client\nthat parses to a float, does arithmetic and formats back will eventually\nsend someone the wrong number. Read them, compare them and store them as\nstrings.\n\n## `clientTxId` is what makes a retry safe\n\nEvery transfer requires one, and it is the ONLY thing separating \"my request\ntimed out, try again\" from \"pay them twice\". Generate it once per intended\npayment and reuse the identical value on every retry of that payment. The\nserver matches on it and returns the original transfer instead of making a\nsecond one.\n\n**A timeout is not a failure.** It means the outcome is unknown. Never retry\nwith a fresh id — re-send the same id, or read\n`GET /api/v1/transfers/{clientTxId}` to find out what happened.\n",
+    "description": "Two ways in, for two different jobs:\n\n**Agent keys (`/api/v1`)** — server-to-server. A key belongs to one wallet\nand carries mandatory restrictions: what it may do, how much it may move per\ntransaction, which recipients it may pay, which IPs may use it. There is no\nunrestricted key.\n\n**CIP-0103** — browser dApps. Not described here because it is not an HTTP\nAPI: a dApp talks to the Slay browser extension, which implements\n[CIP-0103](https://github.com/canton-foundation/cips/blob/main/cip-0103/cip-0103.md)\nand is discovered at runtime via `canton:announceProvider`. Use\n`@canton-network/dapp-sdk`; nothing in this document is needed for that.\n\n## Base URLs — there are two, and they are different Workers\n\n| | |\n|---|---|\n| This API | `https://slay-api-wallet-providers.slay-money-api.workers.dev` |\n| Everything else | `https://slay-money-api.slay-money-api.workers.dev` |\n\nOnly `/api/v1` lives here. Issuing a key, applying for approval, prices,\nand every other Slay route are on the main API and are **not** reachable on\nthis host — they answer 404 with a message saying so. The split is\ndeliberate: this Worker deploys from a reviewed tag on a slow cadence, so\nSlay shipping a feature cannot move your traffic.\n\n## Getting a key\n\nIssue one from **Dashboard → Build → API keys** (`POST /api/agents` on the\nmain API, authenticated with a signed-in session — not with a key, and not\non this host). Only a signed-in human can: a key cannot create another key,\nso a leaked one cannot quietly issue itself successors.\n\nThe screen is also where you freeze a key, rotate it, or revoke it. Rotation\ncreates the successor first and leaves the old key valid for an hour, so a\ndeployment does not need downtime. Freezing is the reversible one — there is\na **Freeze all** control for the moment you are not yet sure what leaked.\n\nAt creation you choose exactly what it may do. There is no unrestricted\nkey and no \"tighten it later\":\n\n| Capability | Grants |\n|---|---|\n| `balance:read` | `GET /api/v1/balance` |\n| `tx:read` | `GET /api/v1/transactions`, `GET /api/v1/transfers/{id}` |\n| `tx:write` | `POST /api/v1/transfers` — moving money |\n\n`tx:write` additionally **requires** both spend caps, `perTransactionCc`\nand `perDayCc`. A key requesting it without them is rejected at creation\nwith 422, not accepted and warned about. You may also pin it to specific\nrecipients and to specific source IPs.\n\nThe secret is shown **once**, at creation, and hashed on the way in. There\nis no endpoint that returns it later. Lost means rotate.\n\n## Two things a valid key still cannot do\n\nA key that authenticates correctly can still be refused, and the two\nreasons look nothing alike:\n\n**`403 trading_not_approved`** — the account is not cleared to move money\nprogrammatically. Reads keep working. This is checked per request rather\nthan baked into the key, so suspending an account stops every key it owns\nat once, with no propagation delay and no key hunting.\n\nGetting cleared is a two-step thing, and minting a key is only the first:\n\n1. **Apply** — `POST /api/trading/apply` on the main API (session, not a\n   key) with your use case and expected monthly volume. State becomes\n   `pending`.\n2. **An operator decides**, and an approval always carries two **account\n   ceilings**: a maximum per transaction and a maximum per UTC day.\n\nThose ceilings bound the account, not one key. A key's own\n`perTransactionCc`/`perDayCc` may be lower and never higher — asking for\nmore at creation silently stores the ceiling instead, and the response\ntells you what was actually saved. If an operator later **lowers** a\nceiling, keys already issued are clamped down to it immediately; a limit\nthat only applied to future keys would not be a limit.\n\n`GET /api/trading/status` (main API, session) returns the current state and\nthe ceilings. A rejected application can be resubmitted. A **suspended**\none cannot — re-applying is refused, because a form should not be able to\nerase an operator's decision.\n\n**`429 limit_exceeded`** — a spend cap, not a request rate. Despite the\nstatus, backing off does not help: `perTransactionCc` will never accept\nthat amount, and `perDayCc` clears at 00:00 UTC. The message names which\ncap was hit and what has already been spent.\n\n## Amounts are decimal strings\n\n`amountCc` goes over the wire as a **string** — `\"3.5\"`, not `3.5`. CC has\nsix decimal places and IEEE-754 does not represent them exactly. A client\nthat parses to a float, does arithmetic and formats back will eventually\nsend someone the wrong number. Read them, compare them and store them as\nstrings.\n\n## `clientTxId` is what makes a retry safe\n\nEvery transfer requires one, and it is the ONLY thing separating \"my request\ntimed out, try again\" from \"pay them twice\". Generate it once per intended\npayment and reuse the identical value on every retry of that payment. The\nserver matches on it and returns the original transfer instead of making a\nsecond one.\n\n**A timeout is not a failure.** It means the outcome is unknown. Never retry\nwith a fresh id — re-send the same id, or read\n`GET /api/v1/transfers/{clientTxId}` to find out what happened.\n",
     "contact": {
       "name": "Slay Money",
       "url": "https://slay.money"
@@ -43,12 +43,12 @@ export const spec: unknown = {
       "description": "Moving CC. Requires the `tx:write` capability."
     },
     {
-      "name": "Keys",
-      "description": "Creating and managing agent keys. Uses a user session, not a key."
+      "name": "Provider",
+      "description": "What this account is configured for. Read-only."
     },
     {
       "name": "Public",
-      "description": "No authentication."
+      "description": "No authentication. Use these for liveness and readiness checks."
     }
   ],
   "paths": {
@@ -107,6 +107,9 @@ export const spec: unknown = {
           "403": {
             "$ref": "#/components/responses/Forbidden"
           },
+          "409": {
+            "$ref": "#/components/responses/Frozen"
+          },
           "429": {
             "$ref": "#/components/responses/RateLimited"
           }
@@ -161,6 +164,9 @@ export const spec: unknown = {
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Frozen"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
@@ -238,7 +244,7 @@ export const spec: unknown = {
             "$ref": "#/components/responses/InvalidKey"
           },
           "403": {
-            "description": "Three different refusals share this status, separated by `code`:\n\n- `trading_not_approved` — **the account is not cleared to move\n  money programmatically.** A valid key with `tx:write` still gets\n  this. It is re-checked on every request rather than stamped onto\n  the key, so suspending an account disables all of its keys at\n  once. Reads keep working.\n- `forbidden` — the key does not carry `tx:write`.\n- `forbidden` — the recipient is not in `allowedRecipients`.\n",
+            "description": "Four different refusals share this status, and each has its own\n`code`. Branch on `code`, never on the status alone:\n\n- `trading_not_approved` — **the account is not cleared to move\n  money programmatically.** A valid key with `tx:write` still gets\n  this. It is re-checked on every request rather than stamped onto\n  the key, so suspending an account disables all of its keys at\n  once. Reads keep working. Not retryable.\n- `capability_missing` — the key does not carry `tx:write`. Mint a\n  new key; a key's capabilities cannot be widened after creation.\n- `recipient_not_allowed` — `to` is not in this key's\n  `allowedRecipients`.\n- `token_not_enabled` — the asset is not enabled for this account.\n  See `GET /api/v1/config`.\n",
             "content": {
               "application/json": {
                 "schema": {
@@ -246,6 +252,9 @@ export const spec: unknown = {
                 }
               }
             }
+          },
+          "409": {
+            "$ref": "#/components/responses/Frozen"
           },
           "429": {
             "$ref": "#/components/responses/RateLimited"
@@ -301,112 +310,163 @@ export const spec: unknown = {
         }
       }
     },
-    "/api/agents": {
-      "post": {
+    "/api/v1/config": {
+      "get": {
         "tags": [
-          "Keys"
+          "Provider"
         ],
-        "summary": "Create an agent key",
-        "description": "Authenticated with a **user session**, not an agent key — a key cannot\nmint another key.\n\n`restrictions` is required and has no default. There is no unrestricted\nkey and no \"add limits later\": `tx:write` without `limits.perTransactionCc`\nis rejected outright.\n\n⚠️ `secret` is returned **once**, here, and is never retrievable again.\nIt is hashed on the way in. If it is lost, delete the key and make\nanother.\n",
-        "operationId": "createAgentKey",
-        "security": [
-          {
-            "SessionCookie": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "name",
-                  "restrictions"
-                ],
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "example": "payouts-worker"
-                  },
-                  "restrictions": {
-                    "type": "object",
-                    "properties": {
-                      "capabilities": {
-                        "type": "array",
-                        "items": {
+        "summary": "What this account is configured for",
+        "description": "The assets this account may move and the fee it adds on top of Slay's,\nas an operator configured them. Any valid key can read it; no key can\nchange it.\n\nRead-only on purpose. A key that could widen the assets it may touch,\nor lower the fee it charges, would not be a capped credential — those\nare account-level settings a signed-in human makes in the dashboard.\n\nAbsence of configuration means defaults: every supported asset enabled,\nno partner fee. An account that has never opened the settings screen\nbehaves exactly as it did before the screen existed.\n",
+        "operationId": "getProviderConfig",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "tokens",
+                    "fee"
+                  ],
+                  "properties": {
+                    "tokens": {
+                      "type": "array",
+                      "description": "Assets enabled for this account. `POST /api/v1/transfers`\nmoves CC only today; anything else here is enabled and\nnot yet reachable through this API.\n",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "cc",
+                          "cbtc",
+                          "ceth",
+                          "tusd",
+                          "hecto"
+                        ]
+                      },
+                      "example": [
+                        "cc",
+                        "cbtc"
+                      ]
+                    },
+                    "fee": {
+                      "type": "object",
+                      "description": "**Your** take, not Slay's. Slay's base fee is charged by\nthe send path regardless and is not represented here —\nnothing on this object can reduce, waive or redirect it.\n",
+                      "required": [
+                        "mode",
+                        "active"
+                      ],
+                      "properties": {
+                        "mode": {
                           "type": "string",
                           "enum": [
-                            "balance:read",
-                            "tx:read",
-                            "tx:write"
+                            "none",
+                            "flat",
+                            "bps"
                           ]
-                        }
-                      },
-                      "limits": {
-                        "type": "object",
-                        "properties": {
-                          "perTransactionCc": {
-                            "type": "string",
-                            "description": "Largest single transfer. Required whenever\n`tx:write` is granted — 422 without it.\n",
-                            "example": "25"
-                          },
-                          "perDayCc": {
-                            "type": "string",
-                            "description": "Total per UTC day. Also required for `tx:write`,\nand also 422 without it. Reserved before the\ntransfer runs, so a failure leaves the day\noverstated rather than understated.\n",
-                            "example": "250"
-                          }
-                        }
-                      },
-                      "allowedRecipients": {
-                        "type": [
-                          "array",
-                          "null"
-                        ],
-                        "items": {
-                          "type": "string"
                         },
-                        "description": "Null means any recipient."
-                      },
-                      "allowedIps": {
-                        "type": [
-                          "array",
-                          "null"
-                        ],
-                        "items": {
-                          "type": "string"
+                        "flatCc": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Used when `mode` is `flat`. Decimal string.",
+                          "example": "0.25"
+                        },
+                        "bps": {
+                          "type": [
+                            "integer",
+                            "null"
+                          ],
+                          "description": "Basis points (1 bp = 0.01%). Used when `mode` is `bps`.",
+                          "example": 250
+                        },
+                        "maxCc": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "description": "Ceiling on your take per send. Only meaningful for\n`bps` — a percentage of a large transfer is a large\nnumber, and 250bp of a 1000 CC send is 25 CC, which\nis rarely what anyone means by \"2.5%\".\n",
+                          "example": "5"
+                        },
+                        "active": {
+                          "type": "boolean",
+                          "description": "Whether a take is actually payable. `mode` alone is\nnot enough: a fee with no destination party is not\ncharged at all, so this is false even when `mode` is\n`flat` or `bps`.\n"
                         }
                       }
+                    },
+                    "freeTxnsPerDay": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "description": "Override for the free daily send allowance. Null = the global default."
                     }
                   }
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidKey"
+          },
+          "409": {
+            "$ref": "#/components/responses/Frozen"
           }
-        },
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "Readiness — can this API actually serve a request",
+        "description": "Checks the shared database, which is what a request needs. **Alert on\nthis, not on `/`.** A partner watching only `/` would page nobody\nduring a database outage, because the Worker itself is fine.\n\nReturns 503 with `db: \"down\"` when Postgres is unreachable, so the\nanswer to \"is it us or you\" does not require a support ticket.\n",
+        "operationId": "getHealth",
+        "security": [],
         "responses": {
-          "201": {
-            "description": "Created. The only time `secret` is shown.",
+          "200": {
+            "description": "Ready.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "string"
+                    "ok": {
+                      "type": "boolean",
+                      "example": true
                     },
-                    "name": {
-                      "type": "string"
-                    },
-                    "prefix": {
+                    "db": {
                       "type": "string",
-                      "description": "Stored in clear so a key can be identified in logs.",
-                      "example": "sk_live_a1b2c3"
+                      "example": "up"
                     },
-                    "secret": {
+                    "ms": {
+                      "type": "integer",
+                      "description": "Database round-trip",
+                      "milliseconds.": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Running, but cannot reach the database.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "db": {
                       "type": "string",
-                      "description": "Shown once. Never retrievable.",
-                      "example": "sk_live_a1b2c3_9f4e7d2c8b1a6503e4f7a9d2"
+                      "example": "down"
+                    },
+                    "ms": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -416,30 +476,15 @@ export const spec: unknown = {
         }
       }
     },
-    "/api/prices/{asset}": {
+    "/": {
       "get": {
         "tags": [
           "Public"
         ],
-        "summary": "USD spot price",
-        "description": "No authentication.\n\n`usd` is nullable and that is not a formality: it is null when the\nupstream has never been reached, precisely so a client shows \"—\" rather\nthan inventing a floor price. Anything multiplying a balance by this\nmust handle null instead of coercing to zero, which would render a real\nholding as $0.00.\n\n`stale: true` means the value is being served from cache after an\nupstream failure. It is usable, but say so.\n",
-        "operationId": "getPrice",
+        "summary": "Liveness",
+        "description": "Answers without touching the database, so it stays up during an outage\n— which is exactly when you need to tell \"the Worker is down\" apart\nfrom \"the database is down\". Pair it with `/health`, never replace it.\n",
+        "operationId": "getRoot",
         "security": [],
-        "parameters": [
-          {
-            "name": "asset",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "cc",
-                "cbtc",
-                "ceth"
-              ]
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -448,19 +493,25 @@ export const spec: unknown = {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "usd": {
-                      "type": [
-                        "number",
-                        "null"
-                      ],
-                      "example": 0.09202
-                    },
-                    "asOf": {
+                    "name": {
                       "type": "string",
-                      "format": "date-time"
+                      "example": "slay-api-wallet-providers"
                     },
-                    "stale": {
-                      "type": "boolean"
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "surface": {
+                      "type": "string",
+                      "example": "wallet"
+                    },
+                    "docs": {
+                      "type": "string",
+                      "example": "/docs"
+                    },
+                    "openapi": {
+                      "type": "string",
+                      "example": "/openapi.json"
                     }
                   }
                 }
@@ -488,6 +539,16 @@ export const spec: unknown = {
       }
     },
     "responses": {
+      "Frozen": {
+        "description": "`frozen` — this key has been frozen, by its owner or by an operator.\n\nIt affects **every** route, reads included, which is what separates it\nfrom `trading_not_approved`. Freezing is reversible; retrying is not\nthe fix, unfreezing is.\n",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
       "InvalidKey": {
         "description": "Missing or unrecognised key.",
         "content": {
@@ -537,14 +598,20 @@ export const spec: unknown = {
             "enum": [
               "bad_request",
               "client_tx_id_required",
+              "unsupported_token",
               "invalid_key",
-              "forbidden",
+              "capability_missing",
+              "ip_not_allowed",
+              "recipient_not_allowed",
+              "token_not_enabled",
               "trading_not_approved",
               "not_found",
+              "frozen",
+              "limit_exceeded",
+              "forbidden",
               "conflict",
               "gone",
               "unprocessable",
-              "limit_exceeded",
               "rate_limited",
               "unavailable",
               "internal"
@@ -619,6 +686,16 @@ export const spec: unknown = {
             "type": "string",
             "description": "What actually moved — which is not always what was requested. A\ntransfer fee, when one applies, is taken from the amount, so the\nrecipient receives this figure rather than the number you sent.\nReconcile against this, never against your request.\n",
             "example": "1.894700"
+          },
+          "partnerFeeCc": {
+            "type": "string",
+            "description": "Your own take on this transfer, computed from `GET /api/v1/config`.\n`\"0.000000\"` when you have no fee configured, or when it has no\ndestination party.\n\n**Reported, not yet moved** — see `partnerFeeCollected`.\n",
+            "example": "0.075000"
+          },
+          "partnerFeeCollected": {
+            "type": "boolean",
+            "description": "Always `false` today, and stated in the response rather than left\nfor you to discover in reconciliation.\n\nThe figure above is computed and returned so you can bill against\nit, but no ledger movement has happened: collecting it means adding\nan output to the Slay send path, and that path has an open defect\nwhere a dropped fee output leaves the amount already committed.\nBuilding a second fee mechanism on top of that would reproduce the\nbug once per partner. Treat `partnerFeeCc` as an invoice line, not\nas money received.\n",
+            "example": false
           },
           "id": {
             "type": "string"

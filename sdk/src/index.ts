@@ -76,8 +76,54 @@ export interface Transfer {
    * Reconcile against this, never against your own request.
    */
   amountCc: Cc;
+  /**
+   * YOUR take on this transfer, per the account's provider configuration.
+   * `"0.000000"` when no fee is configured, or when it has no destination.
+   *
+   * Reported, NOT moved — see `partnerFeeCollected`.
+   */
+  partnerFeeCc?: Cc;
+  /**
+   * Always `false` today.
+   *
+   * The fee above is computed and returned so it can be billed and
+   * reconciled, but no ledger movement has happened yet. Treat it as an
+   * invoice line, not as money received.
+   */
+  partnerFeeCollected?: boolean;
   id?: string;
   createdAt?: string;
+}
+
+/** What an operator has configured this account for. Read-only. */
+export interface ProviderConfig {
+  /**
+   * Assets enabled for this account. Transfers move CC only today; anything
+   * else listed is enabled and not yet reachable through this API.
+   */
+  tokens: Array<"cc" | "cbtc" | "ceth" | "tusd" | "hecto">;
+  /**
+   * YOUR take, not Slay's. Slay's base fee is charged by the send path
+   * regardless and does not appear here — nothing on this object can reduce,
+   * waive or redirect it.
+   */
+  fee: {
+    mode: "none" | "flat" | "bps";
+    /** Used when `mode` is `flat`. Decimal string. */
+    flatCc: Cc | null;
+    /** Basis points, 1 bp = 0.01%. Used when `mode` is `bps`. */
+    bps: number | null;
+    /** Ceiling on the take per send. Only meaningful for `bps`. */
+    maxCc: Cc | null;
+    /**
+     * Whether a take is actually payable. `mode` alone is not enough: a fee
+     * with no destination party is not charged, so this is false even when
+     * `mode` is `flat` or `bps`.
+     */
+    active: boolean;
+  };
+  /** Override for the free daily send allowance. Null = the global default. */
+  freeTxnsPerDay: number | null;
 }
 
 export interface TransferInput {
@@ -284,6 +330,19 @@ export class SlayWallet {
         `Do NOT resend with a new id — read /api/v1/transfers/${input.clientTxId}.`,
       input.clientTxId
     );
+  }
+
+  /**
+   * What this account is configured for — enabled assets and your own fee.
+   *
+   * Read-only by design: a key cannot widen the assets it may touch or change
+   * the fee it charges. Those are account settings a signed-in human makes.
+   *
+   * Worth calling at startup rather than per request; it changes when someone
+   * edits it in the dashboard, not on its own.
+   */
+  getConfig(): Promise<ProviderConfig> {
+    return this.#request<ProviderConfig>("/api/v1/config");
   }
 
   /** Liveness/readiness of the wallet Worker. No key required by the server,
