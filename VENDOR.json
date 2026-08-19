@@ -1,0 +1,362 @@
+{
+  "_comment": "Vendored from slay-money-api. See scripts/check-drift.mjs. Do not hand-edit hashes; use `npm run drift:accept`.",
+  "upstreamRepo": "slay-money-api-swap",
+  "files": [
+    {
+      "path": "src/agents/service.ts",
+      "upstream": "src/agents/service.ts",
+      "localSha": "2828091df2bd1dc8359208cbcb27160f43aea174cb5f2e3a37a1eeeff31ba740",
+      "upstreamSha": "2828091df2bd1dc8359208cbcb27160f43aea174cb5f2e3a37a1eeeff31ba740"
+    },
+    {
+      "path": "src/agents/v1.ts",
+      "upstream": "src/agents/v1.ts",
+      "localSha": "e8fbf74764bffa6c0d193aa1f3bc0c5f36fcd38d45245842aafe14e5fa8f9aee",
+      "upstreamSha": "e8fbf74764bffa6c0d193aa1f3bc0c5f36fcd38d45245842aafe14e5fa8f9aee"
+    },
+    {
+      "path": "src/canton/client.ts",
+      "upstream": "src/canton/client.ts",
+      "localSha": "94c4da10b24b8d858b63045627c2a465d03cda04e8f04d6beddf410e2df601e5",
+      "upstreamSha": "94c4da10b24b8d858b63045627c2a465d03cda04e8f04d6beddf410e2df601e5"
+    },
+    {
+      "path": "src/canton/jwt.ts",
+      "upstream": "src/canton/jwt.ts",
+      "localSha": "eabbd478e3e5b07e7715001b7a1390d4ddd8b39a9dc667ca2cfe98cb055b1bc3",
+      "upstreamSha": "eabbd478e3e5b07e7715001b7a1390d4ddd8b39a9dc667ca2cfe98cb055b1bc3"
+    },
+    {
+      "path": "src/canton/ledger.ts",
+      "upstream": "src/canton/ledger.ts",
+      "localSha": "38e7f2487a15faf19a8b59bc3bfc48690b56a7406f9087dc982731a83335f6ab",
+      "upstreamSha": "38e7f2487a15faf19a8b59bc3bfc48690b56a7406f9087dc982731a83335f6ab"
+    },
+    {
+      "path": "src/canton/operator-holdings.ts",
+      "upstream": "src/canton/operator-holdings.ts",
+      "localSha": "5be4112fb0e8befd63adfbeea74aa003a020e29fb124bf021b00575561c400fa",
+      "upstreamSha": "5be4112fb0e8befd63adfbeea74aa003a020e29fb124bf021b00575561c400fa"
+    },
+    {
+      "path": "src/canton/templates.ts",
+      "upstream": "src/canton/templates.ts",
+      "localSha": "fc29d224b8e844d12a016898db877f095de8c9b2b7461e6e3c57ef3e6d01406d",
+      "upstreamSha": "fc29d224b8e844d12a016898db877f095de8c9b2b7461e6e3c57ef3e6d01406d"
+    },
+    {
+      "path": "src/cbtc/accept.ts",
+      "upstream": "src/cbtc/accept.ts",
+      "localSha": "73baac904e5ec467d1bdddf9f4d46b8b3113847ae284cbfe1012250ce12df493",
+      "upstreamSha": "73baac904e5ec467d1bdddf9f4d46b8b3113847ae284cbfe1012250ce12df493"
+    },
+    {
+      "path": "src/cbtc/disclosed-trim.ts",
+      "upstream": "src/cbtc/disclosed-trim.ts",
+      "localSha": "861fcac655fc80abb22a4dfa98ef1e638d1dfbf653102e7df1d952f25a23165d",
+      "upstreamSha": "861fcac655fc80abb22a4dfa98ef1e638d1dfbf653102e7df1d952f25a23165d"
+    },
+    {
+      "path": "src/cbtc/holding-cache.ts",
+      "upstream": "src/cbtc/holding-cache.ts",
+      "localSha": "cf6102eae1ccdf9dc032351171391cbd5eb5ceff30b4bd96ded9b4f555898d6c",
+      "upstreamSha": "cf6102eae1ccdf9dc032351171391cbd5eb5ceff30b4bd96ded9b4f555898d6c"
+    },
+    {
+      "path": "src/cbtc/keycloak.ts",
+      "upstream": "src/cbtc/keycloak.ts",
+      "localSha": "04a006ff8e9c5b9f1a56c9dd06fc9112f1666da0b361b4ed06db62b7fdd08534",
+      "upstreamSha": "04a006ff8e9c5b9f1a56c9dd06fc9112f1666da0b361b4ed06db62b7fdd08534"
+    },
+    {
+      "path": "src/cbtc/registry.ts",
+      "upstream": "src/cbtc/registry.ts",
+      "localSha": "c0255cca3e44179fe15ca2a8e62547aecc8f4d484b8c74d4b4f608b8a930bb12",
+      "upstreamSha": "c0255cca3e44179fe15ca2a8e62547aecc8f4d484b8c74d4b4f608b8a930bb12"
+    },
+    {
+      "path": "src/cbtc/transfer.ts",
+      "upstream": "src/cbtc/transfer.ts",
+      "localSha": "52a7d08cce204106b6007c7acc604ba871243fe32cb9e3a877f1649d24402477",
+      "upstreamSha": "52a7d08cce204106b6007c7acc604ba871243fe32cb9e3a877f1649d24402477"
+    },
+    {
+      "path": "src/cbtc/types.ts",
+      "upstream": "src/cbtc/types.ts",
+      "localSha": "6f4ad9b638c1177864e2a74bb5adb610f419fe82ada78bcf794d06605e404296",
+      "upstreamSha": "6f4ad9b638c1177864e2a74bb5adb610f419fe82ada78bcf794d06605e404296"
+    },
+    {
+      "path": "src/ceth/accept.ts",
+      "upstream": "src/ceth/accept.ts",
+      "localSha": "facef29e2b669b6992fac6ff2eb5f8d2bc441bd25ffc2bc96fdabdeb47c3eb35",
+      "upstreamSha": "facef29e2b669b6992fac6ff2eb5f8d2bc441bd25ffc2bc96fdabdeb47c3eb35"
+    },
+    {
+      "path": "src/ceth/holding-cache.ts",
+      "upstream": "src/ceth/holding-cache.ts",
+      "localSha": "0e708870c0cdf6a1c9191056abb771136b61a9fecca54c9b6b12e8171a2cf41a",
+      "upstreamSha": "0e708870c0cdf6a1c9191056abb771136b61a9fecca54c9b6b12e8171a2cf41a"
+    },
+    {
+      "path": "src/ceth/keycloak.ts",
+      "upstream": "src/ceth/keycloak.ts",
+      "localSha": "5db6eb83f37045d4e16a7cb7827410f711536408b6e862c5e668716f88a66980",
+      "upstreamSha": "5db6eb83f37045d4e16a7cb7827410f711536408b6e862c5e668716f88a66980"
+    },
+    {
+      "path": "src/ceth/registry.ts",
+      "upstream": "src/ceth/registry.ts",
+      "localSha": "6fd0ba784b58d61d945c0bcd2f1e301c22879b5e277ea344062af4984545b1a5",
+      "upstreamSha": "6fd0ba784b58d61d945c0bcd2f1e301c22879b5e277ea344062af4984545b1a5"
+    },
+    {
+      "path": "src/ceth/transfer.ts",
+      "upstream": "src/ceth/transfer.ts",
+      "localSha": "ac7a780f62d6c57d576758ad20e2de455d64f8f0e06c3dd39db38c06200ed948",
+      "upstreamSha": "ac7a780f62d6c57d576758ad20e2de455d64f8f0e06c3dd39db38c06200ed948"
+    },
+    {
+      "path": "src/ceth/types.ts",
+      "upstream": "src/ceth/types.ts",
+      "localSha": "d158f2e9783242fe0eaa1a378dbb3e974303672cb1f592986175e81685a7a8e1",
+      "upstreamSha": "d158f2e9783242fe0eaa1a378dbb3e974303672cb1f592986175e81685a7a8e1"
+    },
+    {
+      "path": "src/db/index.ts",
+      "upstream": "src/db/index.ts",
+      "localSha": "512beee6d329e91b0a0042a26f704de042ddf8822c414913802e273954156a14",
+      "upstreamSha": "512beee6d329e91b0a0042a26f704de042ddf8822c414913802e273954156a14"
+    },
+    {
+      "path": "src/db/schema.ts",
+      "upstream": "src/db/schema.ts",
+      "localSha": "bafea0c85ba0ec4a86411153162ddb97c2cf6f2a189bbd166caa88d6d1df802a",
+      "upstreamSha": "bafea0c85ba0ec4a86411153162ddb97c2cf6f2a189bbd166caa88d6d1df802a"
+    },
+    {
+      "path": "src/docs/render.ts",
+      "upstream": "src/docs/render.ts",
+      "localSha": "ab7e0fef5fb0a0e21d703f72d9182e3aadfe7f71bd1908107589ff52a51897bd",
+      "upstreamSha": "ab7e0fef5fb0a0e21d703f72d9182e3aadfe7f71bd1908107589ff52a51897bd"
+    },
+    {
+      "path": "src/docs/routes.ts",
+      "upstream": "src/docs/routes.ts",
+      "localSha": "6481307ad825f57656a8de2650cc45b28a261b01fcfac31f3e6c7010a78f6e06",
+      "upstreamSha": "6481307ad825f57656a8de2650cc45b28a261b01fcfac31f3e6c7010a78f6e06"
+    },
+    {
+      "path": "src/env.ts",
+      "upstream": "src/env.ts",
+      "localSha": "d324816e7c0cb63ba2c5c3dd0cb340327eb6dba148f445fd0be3afa9d35017bb",
+      "upstreamSha": "d324816e7c0cb63ba2c5c3dd0cb340327eb6dba148f445fd0be3afa9d35017bb"
+    },
+    {
+      "path": "src/fees/network-fees.ts",
+      "upstream": "src/fees/network-fees.ts",
+      "localSha": "ae4e0294ff37c565b49760efbaa1eb592e423ec1435bc42c780900ba6ca14754",
+      "upstreamSha": "ae4e0294ff37c565b49760efbaa1eb592e423ec1435bc42c780900ba6ca14754"
+    },
+    {
+      "path": "src/fees/send-fees.ts",
+      "upstream": "src/fees/send-fees.ts",
+      "localSha": "51387ef6599c5bc4d6e4301f028929e89ef04de09d7aedd518cec7cad9308c54",
+      "upstreamSha": "51387ef6599c5bc4d6e4301f028929e89ef04de09d7aedd518cec7cad9308c54"
+    },
+    {
+      "path": "src/hecto/accept.ts",
+      "upstream": "src/hecto/accept.ts",
+      "localSha": "a22e116a7894180f56ca196050882c1d288333ff2bccc20eeb12426c6f2fddb2",
+      "upstreamSha": "a22e116a7894180f56ca196050882c1d288333ff2bccc20eeb12426c6f2fddb2"
+    },
+    {
+      "path": "src/hecto/holding-cache.ts",
+      "upstream": "src/hecto/holding-cache.ts",
+      "localSha": "9ca76b780be31a52716916d523eafe5b459329b97769125408cd3a80cef48c05",
+      "upstreamSha": "9ca76b780be31a52716916d523eafe5b459329b97769125408cd3a80cef48c05"
+    },
+    {
+      "path": "src/hecto/keycloak.ts",
+      "upstream": "src/hecto/keycloak.ts",
+      "localSha": "e7a392619c75815f868f0bcad64a41830f6b2529edbe865e03dd40b9c4c5e38a",
+      "upstreamSha": "e7a392619c75815f868f0bcad64a41830f6b2529edbe865e03dd40b9c4c5e38a"
+    },
+    {
+      "path": "src/hecto/registry.ts",
+      "upstream": "src/hecto/registry.ts",
+      "localSha": "ab17056d256d380f237dd1ba78957578f4cf31ecb104653b1917898145adad4d",
+      "upstreamSha": "ab17056d256d380f237dd1ba78957578f4cf31ecb104653b1917898145adad4d"
+    },
+    {
+      "path": "src/hecto/transfer.ts",
+      "upstream": "src/hecto/transfer.ts",
+      "localSha": "c50c4d522e7564561f4ca37aabd47cff842003676e0f9f36e6b39cca1df676a6",
+      "upstreamSha": "c50c4d522e7564561f4ca37aabd47cff842003676e0f9f36e6b39cca1df676a6"
+    },
+    {
+      "path": "src/hecto/types.ts",
+      "upstream": "src/hecto/types.ts",
+      "localSha": "32da69773864d08e89e67f9e89dd7684ba80255057a38228970c4d4a0a0ef4e1",
+      "upstreamSha": "32da69773864d08e89e67f9e89dd7684ba80255057a38228970c4d4a0a0ef4e1"
+    },
+    {
+      "path": "src/kms/interactive.ts",
+      "upstream": "src/kms/interactive.ts",
+      "localSha": "429343476fe5afb25c1514dc5dbdc17fa35453cf314949c9961dc36b8fa8fa74",
+      "upstreamSha": "429343476fe5afb25c1514dc5dbdc17fa35453cf314949c9961dc36b8fa8fa74"
+    },
+    {
+      "path": "src/kms/keys.ts",
+      "upstream": "src/kms/keys.ts",
+      "localSha": "e4dbc9134fcf4230c9ae23f466bac3792def08dc29d72ce90c240803e6695f0c",
+      "upstreamSha": "e4dbc9134fcf4230c9ae23f466bac3792def08dc29d72ce90c240803e6695f0c"
+    },
+    {
+      "path": "src/kms/router.ts",
+      "upstream": "src/kms/router.ts",
+      "localSha": "ddbe09f63813d3388235ee6aaff5c1a96d9e24b36977fd01dbd7767eb86013a4",
+      "upstreamSha": "ddbe09f63813d3388235ee6aaff5c1a96d9e24b36977fd01dbd7767eb86013a4"
+    },
+    {
+      "path": "src/lib/reliability.ts",
+      "upstream": "src/lib/reliability.ts",
+      "localSha": "8ef78f69abb625df5ad5c0479bc88f877023fad25460e25fb1afc88d5a1eda1a",
+      "upstreamSha": "8ef78f69abb625df5ad5c0479bc88f877023fad25460e25fb1afc88d5a1eda1a"
+    },
+    {
+      "path": "src/middleware/agentAuth.ts",
+      "upstream": "src/middleware/agentAuth.ts",
+      "localSha": "c8cdb4be82b646fc2cf5881e338b07ef81217362799e3ce3365fd3113eb729a6",
+      "upstreamSha": "c8cdb4be82b646fc2cf5881e338b07ef81217362799e3ce3365fd3113eb729a6"
+    },
+    {
+      "path": "src/oracle-markets/oracle.ts",
+      "upstream": "src/oracle-markets/oracle.ts",
+      "localSha": "2b7a69d96dacd6819734244656b9aada2ef4666a39dab177e08c77830c964d3f",
+      "upstreamSha": "2b7a69d96dacd6819734244656b9aada2ef4666a39dab177e08c77830c964d3f"
+    },
+    {
+      "path": "src/prices/cbtc.ts",
+      "upstream": "src/prices/cbtc.ts",
+      "localSha": "77f56fa078bcfe5b0a1729123e95d8970ede994d7b722cd8fc74b1719efc1a19",
+      "upstreamSha": "77f56fa078bcfe5b0a1729123e95d8970ede994d7b722cd8fc74b1719efc1a19"
+    },
+    {
+      "path": "src/prices/cc.ts",
+      "upstream": "src/prices/cc.ts",
+      "localSha": "06b5eb0de0bc160dbb285cb753df774f366f6e2a7f9ab0bed39fe039fc16e319",
+      "upstreamSha": "06b5eb0de0bc160dbb285cb753df774f366f6e2a7f9ab0bed39fe039fc16e319"
+    },
+    {
+      "path": "src/prices/store.ts",
+      "upstream": "src/prices/store.ts",
+      "localSha": "7238a2e2b747f6f490b4829ecf388245444c8fdcb000bde4b9b0b5856748a253",
+      "upstreamSha": "7238a2e2b747f6f490b4829ecf388245444c8fdcb000bde4b9b0b5856748a253"
+    },
+    {
+      "path": "src/registry-auth.ts",
+      "upstream": "src/registry-auth.ts",
+      "localSha": "ed1038718a2ff4225b06d768a87ef93d9c9ea9d70ef84527bfe2e1d4cda52f3f",
+      "upstreamSha": "ed1038718a2ff4225b06d768a87ef93d9c9ea9d70ef84527bfe2e1d4cda52f3f"
+    },
+    {
+      "path": "src/slay-rewards/config.ts",
+      "upstream": "src/slay-rewards/config.ts",
+      "localSha": "ec321636403653e2f4317691251b329f732cde9a52465a621b0e0d155396470c",
+      "upstreamSha": "ec321636403653e2f4317691251b329f732cde9a52465a621b0e0d155396470c"
+    },
+    {
+      "path": "src/splice/amulet.ts",
+      "upstream": "src/splice/amulet.ts",
+      "localSha": "e990941d23b2b2a4ee7e38301c94fa52dd1fb60b84c622df5670f1721aaa9f9f",
+      "upstreamSha": "e990941d23b2b2a4ee7e38301c94fa52dd1fb60b84c622df5670f1721aaa9f9f"
+    },
+    {
+      "path": "src/splice/client.ts",
+      "upstream": "src/splice/client.ts",
+      "localSha": "93c117b60ebc918a25f8b5e49e3f90ad35528430da8a46fbbe33a1d3058306c7",
+      "upstreamSha": "93c117b60ebc918a25f8b5e49e3f90ad35528430da8a46fbbe33a1d3058306c7"
+    },
+    {
+      "path": "src/splice/featured.ts",
+      "upstream": "src/splice/featured.ts",
+      "localSha": "fb29bb50a1af84ea5a29d59650e36938ca61a0d4a1ef1dce02b76f21bfc84d60",
+      "upstreamSha": "fb29bb50a1af84ea5a29d59650e36938ca61a0d4a1ef1dce02b76f21bfc84d60"
+    },
+    {
+      "path": "src/splice/marker.ts",
+      "upstream": "src/splice/marker.ts",
+      "localSha": "c6a2ea24fdfd2f4b41ac95f74238f4a15aef7adca960326f2df0def3d7ead3b5",
+      "upstreamSha": "c6a2ea24fdfd2f4b41ac95f74238f4a15aef7adca960326f2df0def3d7ead3b5"
+    },
+    {
+      "path": "src/splice/preapproval-setup.ts",
+      "upstream": "src/splice/preapproval-setup.ts",
+      "localSha": "86287211c9b251eb1795fd98f6848bec35f7631700c6a928f22dfce13b2f63b8",
+      "upstreamSha": "86287211c9b251eb1795fd98f6848bec35f7631700c6a928f22dfce13b2f63b8"
+    },
+    {
+      "path": "src/splice/traffic.ts",
+      "upstream": "src/splice/traffic.ts",
+      "localSha": "765d4a587d9ee6b368ed1c1c98ef1ca2183e561fcf09d37279008436657868db",
+      "upstreamSha": "765d4a587d9ee6b368ed1c1c98ef1ca2183e561fcf09d37279008436657868db"
+    },
+    {
+      "path": "src/tusd/accept.ts",
+      "upstream": "src/tusd/accept.ts",
+      "localSha": "5fe037ff2d9ac42c3498aa5b968ce14ebdd30c7c331c1b80405930ffd28acaca",
+      "upstreamSha": "5fe037ff2d9ac42c3498aa5b968ce14ebdd30c7c331c1b80405930ffd28acaca"
+    },
+    {
+      "path": "src/tusd/holding-cache.ts",
+      "upstream": "src/tusd/holding-cache.ts",
+      "localSha": "586d0bacbe9d270a76a40e564a9fef2aa42f6b2fd0f9dfd60e522fd845a1c3e0",
+      "upstreamSha": "586d0bacbe9d270a76a40e564a9fef2aa42f6b2fd0f9dfd60e522fd845a1c3e0"
+    },
+    {
+      "path": "src/tusd/keycloak.ts",
+      "upstream": "src/tusd/keycloak.ts",
+      "localSha": "79a171f008ec4eb449e0f1d49e26de63a40189884ada32d5fbdf5663338d2ec8",
+      "upstreamSha": "79a171f008ec4eb449e0f1d49e26de63a40189884ada32d5fbdf5663338d2ec8"
+    },
+    {
+      "path": "src/tusd/registry.ts",
+      "upstream": "src/tusd/registry.ts",
+      "localSha": "f95efb160aaf583630e7679ba781272aea238e8d1eb8bfed45fcad45bf9d8eea",
+      "upstreamSha": "f95efb160aaf583630e7679ba781272aea238e8d1eb8bfed45fcad45bf9d8eea"
+    },
+    {
+      "path": "src/tusd/transfer.ts",
+      "upstream": "src/tusd/transfer.ts",
+      "localSha": "973a152ff55be031c6eb90d77e15dcb0f5743d5ec6e28660c8a05b9bfe031b4e",
+      "upstreamSha": "973a152ff55be031c6eb90d77e15dcb0f5743d5ec6e28660c8a05b9bfe031b4e"
+    },
+    {
+      "path": "src/tusd/types.ts",
+      "upstream": "src/tusd/types.ts",
+      "localSha": "00a6ea7c041388b135bfe3579c3cc15a481833a994442c5d0e25c666b9a02411",
+      "upstreamSha": "00a6ea7c041388b135bfe3579c3cc15a481833a994442c5d0e25c666b9a02411"
+    },
+    {
+      "path": "src/wallet/balance-cache.ts",
+      "upstream": "src/wallet/balance-cache.ts",
+      "localSha": "78791d21d53a923d9125a70884ef625c493903a6f4b028fd96d2c3ab7284501f",
+      "upstreamSha": "78791d21d53a923d9125a70884ef625c493903a6f4b028fd96d2c3ab7284501f"
+    },
+    {
+      "path": "src/wallet/service.ts",
+      "upstream": "src/wallet/service.ts",
+      "localSha": "e7f87ad7e43563978c772114ca2ac19431b4d8afcbda5730f9ec6dc5a7a0327c",
+      "upstreamSha": "e7f87ad7e43563978c772114ca2ac19431b4d8afcbda5730f9ec6dc5a7a0327c"
+    },
+    {
+      "path": "scripts/gen-openapi.mjs",
+      "upstream": "scripts/gen-openapi.mjs",
+      "localSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086",
+      "upstreamSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086"
+    }
+  ],
+  "acceptedAt": "2026-08-19T08:23:16.925Z",
+  "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
+}

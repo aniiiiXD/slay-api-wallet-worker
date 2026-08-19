@@ -1,0 +1,71 @@
+name = "slay-api-wallet-providers"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+compatibility_flags = ["nodejs_compat"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  A SEPARATE Worker from slay-money-api, and separate on purpose.
+#
+#  Deploying the Slay app must not touch partner traffic. That is the whole
+#  reason this file exists — the two Workers share a database, not a lifecycle.
+#
+#  DEPLOY FROM A TAG, NOT FROM main
+#
+#  The isolation is only worth what the release discipline is worth. Shipping
+#  this Worker on every commit would reintroduce exactly the coupling it was
+#  built to remove — the code would be separate and the risk would not be.
+#
+#      git tag -a partner-v1.2.0 -m "..." && git push --tags
+#      git checkout partner-v1.2.0 && npm run verify && npm run deploy
+#
+#  `npm run verify` is not optional: it typechecks, confirms the docs match
+#  openapi.yaml, and confirms the vendored ledger code has not silently
+#  drifted from slay-money-api.
+#
+#  NO CRONS, NO DURABLE OBJECTS, NO QUEUES — deliberately.
+#
+#  The main Worker runs ~25 scheduled jobs. None belong here. A cron is a
+#  process that can fail on its own schedule, at 3am, in a Worker whose entire
+#  selling point is that nothing happens in it unless a partner asked for it.
+#  Reconciliation, sweeps and mirroring stay on the main Worker; they operate
+#  on the same shared database, so partner wallets are still reconciled — by
+#  code that is allowed to change often.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[dev]
+port = 8788
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Secrets — set with `wrangler secret put <NAME>`, never committed.
+#
+#  Copy the values from slay-money-api. They MUST match: the same database,
+#  the same validator, the same fee party. A partner's CC is real CC in the
+#  same Canton ledger, so pointing this Worker at anything else does not
+#  isolate partners, it strands them.
+#
+#    DATABASE_URL                  shared Postgres
+#
+#    Canton / JSON Ledger API
+#    JSON_API_URL, JSON_API_URL_V2, JSON_API_GATE, JSON_API_V2_GATE
+#    JSON_LEDGER_ADMIN_TOKEN, LEDGER_JWT_SECRET, LEDGER_JWT_AUDIENCE
+#    LEDGER_USER_ID, LEDGER_RESOLVE_IP
+#
+#    Splice / validator
+#    SPLICE_VALIDATOR_URL, SPLICE_VALIDATOR_PARTY_ID, SPLICE_SCAN_PUBLIC_URL
+#    SPLICE_AUTH_SECRET, SPLICE_AUTH_AUDIENCE, SPLICE_AUTH_SUBJECT
+#    SPLICE_AMULET_PACKAGE_ID, SPLICE_MIGRATION_ID
+#    SPLICE_OPERATOR_WALLET_USER
+#
+#    Slay parties and packages
+#    SLAY_PARTY_ID, SLAY_FEES_PARTY, SLAY_DAR_PACKAGE_ID, SLAY_API_KEY
+#    SLAY_V2_VALIDATOR_PARTY, SLAY_V2_FEATURED_RIGHT_CID
+#    SLAY_V2_FEATURED_RIGHT_BLOB, SLAY_WALLET_FEATURED_RIGHT_CID
+#
+#    Fees and sending
+#    FEE_CC_INTERNAL_CC, FEE_TOKEN_INTERNAL_CC, FREE_TXNS_PER_DAY
+#    USE_ONCHAIN_SEND, SEND_POSTGRES_FALLBACK
+#    TRAFFIC_PRICE_USD_PER_KB, TOKEN_TRANSFER_BURN_KB
+#
+#  Not needed here — this Worker has no auth surface, no email, no markets:
+#    BETTER_AUTH_SECRET, SMTP_*, POLYMARKET_*, LETSEXCHANGE_*, BRALE_*
+# ─────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,31 @@
+{
+  "name": "slay-api-wallet-providers",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Slay wallet provider API \u2014 isolated Worker serving the partner surface only.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "docs:gen": "node scripts/gen-openapi.mjs",
+    "docs:check": "node scripts/gen-openapi.mjs --check",
+    "drift": "node scripts/check-drift.mjs",
+    "drift:accept": "node scripts/check-drift.mjs --accept",
+    "verify": "npm run typecheck && npm run docs:check && npm run drift"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "@noble/ed25519": "^2.3.0",
+    "@noble/hashes": "^1.8.0",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.6.14",
+    "aws4fetch": "^1.0.20"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20260612.1",
+    "typescript": "^5.7.2",
+    "wrangler": "4.100.0",
+    "yaml": "^2.9.0"
+  }
+}
