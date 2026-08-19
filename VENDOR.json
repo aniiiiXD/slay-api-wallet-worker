@@ -11,7 +11,7 @@
     {
       "path": "src/agents/v1.ts",
       "upstream": "src/agents/v1.ts",
-      "localSha": "e8fbf74764bffa6c0d193aa1f3bc0c5f36fcd38d45245842aafe14e5fa8f9aee",
+      "localSha": "ad60cda7b9fcb3a99a7e3bbfca71f35e5a8b7db034526f25dbccd779e85e6e82",
       "upstreamSha": "e8fbf74764bffa6c0d193aa1f3bc0c5f36fcd38d45245842aafe14e5fa8f9aee"
     },
     {
@@ -131,8 +131,8 @@
     {
       "path": "src/db/schema.ts",
       "upstream": "src/db/schema.ts",
-      "localSha": "bafea0c85ba0ec4a86411153162ddb97c2cf6f2a189bbd166caa88d6d1df802a",
-      "upstreamSha": "bafea0c85ba0ec4a86411153162ddb97c2cf6f2a189bbd166caa88d6d1df802a"
+      "localSha": "ad91da7887b3349c8fc92cdf4bb05621de662ab144e62c336113399ec66837f4",
+      "upstreamSha": "ad91da7887b3349c8fc92cdf4bb05621de662ab144e62c336113399ec66837f4"
     },
     {
       "path": "src/docs/render.ts",
@@ -357,6 +357,6 @@
       "upstreamSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086"
     }
   ],
-  "acceptedAt": "2026-08-19T08:23:16.925Z",
+  "acceptedAt": "2026-08-19T10:13:27.559Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }

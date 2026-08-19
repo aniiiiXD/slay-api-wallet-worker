@@ -2161,3 +2161,71 @@ export const campaignJoins = pgTable(
   })
 );
 export type CampaignJoinRow = typeof campaignJoins.$inferSelect;
+
+/* ------------------------------------------------------------------ *
+ *  Wallet provider configuration
+ *
+ *  Per-partner fee and token settings for the wallet provider API. One row
+ *  per account; absence means "use the global defaults", so an account that
+ *  has never opened the screen behaves exactly as it did before this table
+ *  existed. That is deliberate — a config table that changes behaviour by
+ *  existing is a migration hazard.
+ *
+ *  ADDITIVE ONLY. New table, no column renamed or dropped, so the wallet
+ *  provider Worker can be running a build from weeks ago and is completely
+ *  unaffected until it ships code that reads this. That is the expand step
+ *  of expand/contract, and the reason this is safe to deploy first.
+ * ------------------------------------------------------------------ */
+export const walletProviderConfig = pgTable("wallet_provider_config", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  /**
+   * How the PARTNER'S OWN take is calculated. Slay's base fee is charged
+   * regardless and is not represented here — a partner configures what they
+   * add, never what Slay collects. `none` means they add nothing.
+   */
+  feeMode: text("fee_mode").$type<"none" | "flat" | "bps">().default("none").notNull(),
+
+  /** Flat partner take per send, decimal CC. Used when feeMode = 'flat'. */
+  feeFlatCc: numeric("fee_flat_cc", { precision: 30, scale: 10 }),
+
+  /** Partner take in basis points (1 bp = 0.01%). Used when feeMode = 'bps'. */
+  feeBps: integer("fee_bps"),
+
+  /**
+   * Ceiling on the partner's take per send, decimal CC.
+   *
+   * Only meaningful for `bps`, and the reason it exists is that a percentage
+   * of a large transfer is a large number. Without a cap, a 250bp partner
+   * takes 25 CC out of a 1000 CC send, which is not what anyone typed into
+   * the box when they thought "2.5%".
+   */
+  feeMaxCc: numeric("fee_max_cc", { precision: 30, scale: 10 }),
+
+  /**
+   * Canton party that receives the partner's take. Null disables the partner
+   * fee no matter what feeMode says — charging a fee with nowhere to send it
+   * would silently shrink the transfer, which is precisely the bug this
+   * codebase already has once.
+   */
+  feeRecipientParty: text("fee_recipient_party"),
+
+  /** Partner override for the free daily send allowance. Null = global default. */
+  freeTxnsPerDay: integer("free_txns_per_day"),
+
+  /**
+   * Assets this partner's wallets may hold and move, e.g. ["cc","cbtc"].
+   *
+   * Null means every supported asset — NOT none. A partner who has never
+   * configured tokens keeps working, which is the same reasoning as the row
+   * being optional. An empty array is a real setting meaning "nothing", and
+   * is distinguishable from null on purpose.
+   */
+  enabledTokens: jsonb("enabled_tokens").$type<string[] | null>(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export type WalletProviderConfigRow = typeof walletProviderConfig.$inferSelect;

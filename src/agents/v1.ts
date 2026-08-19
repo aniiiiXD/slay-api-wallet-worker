@@ -20,6 +20,12 @@ import * as schema from "../db/schema";
 import { HttpError, microToCc, send } from "../wallet/service";
 import { agentAuth, type AgentVariables } from "../middleware/agentAuth";
 import {
+  assertTokenEnabled,
+  getProviderConfig,
+  partnerFeeFor,
+  tokensFor,
+} from "../provider/config";
+import {
   checkRecipient,
   getTradingStatus,
   requireCapability,
@@ -236,6 +242,15 @@ v1.post("/transfers", async (c) => {
     // 3. Does this key carry the capability at all?
     requireCapability(agent, "tx:write");
 
+    // 3b. Is this asset enabled for this provider?
+    //
+    //     This surface moves CC and only CC today, so the check is against
+    //     "cc" rather than a parameter. It is wired now anyway: the moment a
+    //     token argument exists, the enforcement is already in the path
+    //     instead of being remembered later.
+    const providerCfg = await getProviderConfig(db, userId);
+    assertTokenEnabled(providerCfg, "cc");
+
     // 4. Is this recipient permitted for this key?
     checkRecipient(agent, to);
 
@@ -258,11 +273,30 @@ v1.post("/transfers", async (c) => {
       clientTxId
     );
 
+    /*
+     * The provider's own take for this send.
+     *
+     * REPORTED, NOT YET MOVED. Collecting it means adding an output to the
+     * Slay send path, and that path currently has a live defect: the amount
+     * is committed on-chain before the fee outcome is known, so when the
+     * retry fallback drops the fee output the recipient receives amount-fee,
+     * the sender is charged amount-fee, and nobody collects the difference.
+     *
+     * Building a second fee mechanism into that would reproduce the bug per
+     * partner. So the figure is computed, returned and reconcilable now —
+     * partners can bill against it — and the ledger movement lands once the
+     * underlying path is fixed. A number a partner can see and check is worth
+     * considerably more than a movement nobody can verify.
+     */
+    const partnerFee = partnerFeeFor(providerCfg, amountCc);
+
     return c.json(
       {
         clientTxId,
         status: "settled",
         amountCc,
+        partnerFeeCc: partnerFee.amountCc,
+        partnerFeeCollected: false,
         id: result.transaction.id,
         createdAt: new Date().toISOString(),
       },
@@ -312,6 +346,32 @@ v1.get("/transfers/:clientTxId", async (c) => {
     status: row.status,
     amountCc: microToCc(row.amount ?? 0),
     createdAt: row.createdAt.toISOString(),
+  });
+});
+
+/**
+ * What this provider is configured for.
+ *
+ * Read-only on purpose. A key must not be able to change the fee it charges
+ * or the assets it may touch — that is an account-level decision made by a
+ * signed-in human in the dashboard. A key that can widen its own settings is
+ * not a capped credential.
+ */
+v1.get("/config", async (c) => {
+  const db = createDb(c.env.DATABASE_URL);
+  const cfg = await getProviderConfig(db, c.get("userId"));
+  return c.json({
+    tokens: tokensFor(cfg),
+    fee: {
+      mode: cfg.feeMode,
+      flatCc: cfg.feeFlatCc,
+      bps: cfg.feeBps,
+      maxCc: cfg.feeMaxCc,
+      /* Whether a take is actually payable — mode alone is not enough,
+       * since a fee with no destination is not charged. */
+      active: cfg.feeMode !== "none" && !!cfg.feeRecipientParty,
+    },
+    freeTxnsPerDay: cfg.freeTxnsPerDay,
   });
 });
 
