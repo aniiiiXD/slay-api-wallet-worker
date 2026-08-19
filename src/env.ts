@@ -163,6 +163,35 @@ export type Env = {
   // Shared secret for admin endpoints (market resolution, etc.). Pre-MainNet
   // shortcut — replace with role-based auth before opening these up further.
   ADMIN_SECRET: string;
+
+  /* ---- Agent API: who reviews applications, and whether anyone has to ----
+   *
+   * AGENT_AUTO_APPROVE   "1" approves every application the moment it is
+   *                      submitted. Open access, with the review step wired
+   *                      and switched off rather than absent — set it to
+   *                      anything else and the queue is manual again, with
+   *                      no code change and no deploy.
+   *
+   *                      Auto-approval still writes ceilings, because an
+   *                      approval without one is an unbounded account. It is
+   *                      audited as `auto` rather than as a person, so every
+   *                      account granted this way can be found again on the
+   *                      day the gate goes back on.
+   *
+   * AGENT_AUTO_APPROVE_PER_TX / _PER_DAY
+   *                      Those ceilings, decimal CC. Defaults 25 and 250.
+   *                      While access is open these are the ONLY bound on
+   *                      what a stranger's program can move, so they are
+   *                      deliberately small.
+   *
+   * AGENT_ALERT_EMAIL    Where application alerts go. Unset means nobody is
+   *                      told — which is what happened before this existed:
+   *                      the row was written and sat there.
+   */
+  AGENT_AUTO_APPROVE?: string;
+  AGENT_AUTO_APPROVE_PER_TX?: string;
+  AGENT_AUTO_APPROVE_PER_DAY?: string;
+  AGENT_ALERT_EMAIL?: string;
   // --- On-chain (Daml) wiring ---------------------------------------------
   // Package id of the uploaded slay-money DAR. Use `daml damlc inspect-dar`
   // to look up after `daml build` if you don't know it. Required when any
