@@ -1,0 +1,1831 @@
+/* ──────────────────────────────────────────────────────────────── *
+ *  Slay Money dashboard — the extension popup's editorial dark
+ *  theme, given room to breathe. Same tokens, same three typefaces:
+ *  Inter for body, Instrument Serif (italic) for display, JetBrains
+ *  Mono for labels, ids and figures.
+ *
+ *  Every column of figures is tabular-nums. Money that doesn't line
+ *  up is money you can't scan.
+ * ──────────────────────────────────────────────────────────────── */
+
+/* ── Palette ─────────────────────────────────────────────────────────
+   Light is the only theme. Values are contrast-validated for white
+   surfaces: chart series #6f9412 rather than dark's #7ba315, which only
+   reaches 2.96:1 on white, and status green/red darkened to match. */
+:root {
+  --bg: #f4f5f2;
+  --bg-2: #fbfcfa;
+  --surface: #ffffff;
+  --surface-2: #eef0ec;
+  --border: rgba(20, 24, 20, 0.1);
+  --border-strong: rgba(20, 24, 20, 0.22);
+  --text: #171a17;
+  --text-dim: rgba(23, 26, 23, 0.64);
+  --text-faint: rgba(23, 26, 23, 0.42);
+  --accent: #56710d;
+  --accent-on: #f6ffe0;
+  --accent-soft: rgba(111, 148, 18, 0.14);
+  --green: #147a4d;
+  --red: #c22945;
+  --amber: #9a6d00;
+  --chart-series: #6f9412;
+  --chart-grid: rgba(20, 24, 20, 0.07);
+  --chart-crosshair: rgba(20, 24, 20, 0.3);
+  --hover-wash: rgba(20, 24, 20, 0.05);
+  --hero-wash-a: rgba(111, 148, 18, 0.12);
+  --hero-wash-b: rgba(111, 148, 18, 0.02);
+  --hero-border: rgba(111, 148, 18, 0.34);
+  /* Type tokens are theme-independent — they lived in the old dark :root
+     and the light override never restated them, so collapsing the two
+     palettes dropped them and every `font:` shorthand referencing them
+     became invalid. Restated here as the single palette. */
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--accent-soft);
+}
+
+/* ----- Shell (sidebar layout) ----------------------------------
+   Sidebar rather than a topbar: the sections group meaningfully
+   (Money / Build / Access) and a horizontal strip had nowhere to
+   show that. It also gives each item room for its data-source
+   label, which the topbar could only fit in a tooltip. */
+
+.shell {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 24px 16px 20px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-2);
+  overflow-y: auto;
+}
+
+.sidebar-top {
+  padding: 0 8px;
+}
+
+.brand-sub {
+  margin-top: 4px;
+  font: 500 11px var(--font-mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sidenav {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+}
+
+.sidenav-group-title {
+  padding: 0 10px;
+  margin-bottom: 6px;
+  font: 600 10.5px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sidenav-item {
+  appearance: none;
+  border: 0;
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font: 500 14px var(--font-sans);
+  padding: 8px 10px;
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.sidenav-item:hover {
+  color: var(--text);
+  background: var(--hover-wash);
+}
+
+.sidenav-item.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+/* The source label is the reason each row is two-part. Kept quiet
+   at rest so it reads as a caption, not a second link. */
+.sidenav-source {
+  font: 500 9.5px var(--font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.sidebar-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-handle {
+  font: 500 12.5px var(--font-mono);
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.main {
+  min-width: 0;
+  width: 100%;
+  padding: 36px 34px 90px;
+  max-width: 1240px;
+}
+
+/* Section caption. Deliberately not the old "live" tag: it states the
+   poll interval, which is true of the fetch, and leaves each figure to
+   declare its own provenance. */
+.section-note {
+  font: 500 11px var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+/* ----- Stat cards ---------------------------------------------- */
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0 26px;
+}
+
+@media (max-width: 1080px) {
+  .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .stat-row { grid-template-columns: 1fr; }
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 15px 17px 14px;
+  min-width: 0;
+}
+
+.stat-emphasis {
+  border-color: var(--hero-border);
+  background: linear-gradient(160deg, var(--hero-wash-a), var(--hero-wash-b));
+}
+
+.stat-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 9px;
+}
+
+.stat-label {
+  font: 600 10.5px var(--font-mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.stat-info {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font: 600 9px var(--font-mono);
+  color: var(--text-faint);
+  cursor: help;
+}
+
+.stat-info:hover,
+.stat-info:focus-visible {
+  color: var(--text);
+  border-color: var(--text-dim);
+  outline: none;
+}
+
+.stat-value {
+  font: 600 27px/1.1 var(--font-sans);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.stat-value.tone-green { color: var(--green); }
+.stat-value.tone-red { color: var(--red); }
+
+.stat-unit {
+  margin-left: 5px;
+  font: 500 12px var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+}
+
+.stat-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin-top: 9px;
+  min-height: 15px;
+}
+
+.stat-sub {
+  font: 400 11.5px var(--font-sans);
+  color: var(--text-faint);
+}
+
+.stat-origin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 500 10px var(--font-mono);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.stat-origin.live { color: var(--green); }
+.stat-origin.stamped,
+.stat-origin.estimate { color: var(--text-faint); }
+
+/* Not an error state — the metric is specified, the source isn't built. */
+.stat-origin.pending {
+  color: var(--text-faint);
+  border: 1px dashed var(--border-strong);
+  border-radius: 5px;
+  padding: 1px 6px;
+}
+
+.stat-value.stat-pending { color: var(--text-faint); }
+
+.stat-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+@media (max-width: 860px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidenav { flex-direction: row; flex-wrap: wrap; gap: 12px; }
+  .main { padding: 24px 18px 70px; }
+}
+
+/* ----- Brand --------------------------------------------------- */
+
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.brand-word {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.brand-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateY(-3px);
+}
+
+/* ----- Typography ---------------------------------------------- */
+
+.eyebrow {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 34px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin-top: 4px;
+}
+
+.label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+.note {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+
+.mono-sm {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.text-faint {
+  color: var(--text-faint);
+}
+
+.err {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--red);
+}
+
+/* ----- Layout helpers ------------------------------------------ */
+
+.stack > * + * {
+  margin-top: 14px;
+}
+
+.stack-lg > * + * {
+  margin-top: 22px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px;
+}
+
+/* Cards carried no margin, so consecutive sections sat flush against each
+   other with no seam — on Integrate, four stacked cards read as one long
+   undifferentiated block. Spacing goes on the gap between siblings rather
+   than on every card, so a card used alone (Activity) is unaffected. */
+.card + .card,
+.card + .stat-row,
+.stat-row + .card,
+.chart-row + .card,
+.card + .chart-row {
+  margin-top: 18px;
+}
+
+.page-head + .card,
+.page-head + .stat-row {
+  margin-top: 20px;
+}
+
+.card-head {
+  margin-bottom: 6px;
+}
+
+.stat-grid {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 18px;
+}
+
+.stat-val {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* ----- Totals strip -------------------------------------------- */
+
+.totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.total {
+  background: var(--surface);
+  padding: 16px 18px;
+}
+
+.total-val {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.total-val.pos {
+  color: var(--green);
+}
+
+.total-val.neg {
+  color: var(--red);
+}
+
+/* P/L on the Integrate page — same green/red vocabulary as totals. */
+.stat-val.pos {
+  color: var(--green);
+}
+
+.stat-val.neg {
+  color: var(--red);
+}
+
+/* ----- Forms --------------------------------------------------- */
+
+.filters {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 14px;
+  transition: border-color 150ms ease;
+}
+
+.field:focus-within {
+  border-color: var(--accent);
+}
+
+.field.grow {
+  flex: 1;
+  min-width: 220px;
+}
+
+.field input,
+.field select {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  letter-spacing: -0.005em;
+}
+
+.field input::placeholder {
+  color: var(--text-faint);
+}
+
+.field select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.select-field {
+  min-width: 180px;
+}
+
+.mono-input {
+  font-family: var(--font-mono) !important;
+  font-size: 18px !important;
+  letter-spacing: 0.28em !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 13px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  transition: opacity 150ms ease, transform 150ms ease, border-color 150ms ease;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Breathing room between the "not approved" explanation and the button that
+   does something about it. The form it opens carries its own card styling. */
+.apply-cta {
+  margin-top: 12px;
+}
+
+.btn.inline {
+  width: auto;
+  padding: 9px 15px;
+  font-size: 13px;
+  border-radius: 11px;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+
+.btn.primary:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.btn.ghost {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn.ghost:not(:disabled):hover {
+  border-color: var(--border-strong);
+}
+
+.btn.danger {
+  background: transparent;
+  color: var(--red);
+  border-color: rgba(255, 94, 122, 0.4);
+}
+
+.btn.danger:not(:disabled):hover {
+  background: rgba(255, 94, 122, 0.1);
+}
+
+.linkish {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.linkish:hover {
+  color: var(--accent);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-dim);
+}
+
+/* ----- Transactions -------------------------------------------- */
+
+.tx-list {
+  list-style: none;
+}
+
+.tx {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 0;
+  border-top: 1px solid var(--border);
+}
+
+.tx:first-child {
+  border-top: 0;
+}
+
+.tx-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tx-label {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.tx-memo {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-amt {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+.tx-amt.pos {
+  color: var(--green);
+}
+
+.tx-amt.neg {
+  color: var(--text);
+}
+
+/* ----- Connections --------------------------------------------- */
+
+.source-note {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-left: 2px solid var(--border-strong);
+  background: var(--bg-2);
+  border-radius: 0 10px 10px 0;
+}
+
+.source-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 5px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.conn-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.conn-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+}
+
+.conn-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.conn-origin {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conn-when {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.conn-scopes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.conn-chip {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.conn-chip.strong {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(210, 255, 90, 0.3);
+}
+
+.conn-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.conn-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.conn-warn {
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: rgba(255, 94, 122, 0.1);
+  color: var(--red);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.conn-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ----- Notices ------------------------------------------------- */
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+}
+
+.notice-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.notice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  max-width: 62ch;
+}
+
+.notice-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.notice-warn {
+  border-color: rgba(255, 209, 102, 0.28);
+}
+
+.notice-warn .notice-title {
+  color: var(--amber);
+}
+
+.notice-error {
+  border-color: rgba(255, 94, 122, 0.3);
+}
+
+.notice-error .notice-title {
+  color: var(--red);
+}
+
+/* ----- Loading ------------------------------------------------- */
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 0;
+  color: var(--text-faint);
+}
+
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+.loading-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ----- Auth ---------------------------------------------------- */
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 32px 30px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+}
+
+.auth-card .display {
+  font-size: 30px;
+}
+
+.auth-card .btn {
+  margin-top: 4px;
+}
+
+.auth-foot {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* ----- Responsive ---------------------------------------------- *
+ *  Below ~700px the sidebar stops being a column and becomes a
+ *  scrollable strip at the top; the nav items lose their source
+ *  sub-label only when there is genuinely no room for it.
+ * ---------------------------------------------------------------- */
+
+@media (max-width: 700px) {
+  body {
+    font-size: 14.5px;
+  }
+
+  .brand-word {
+    font-size: 22px;
+  }
+
+  .main {
+    padding: 22px 14px 56px;
+  }
+
+  .display {
+    font-size: 28px;
+  }
+
+  .card {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .page-head {
+    align-items: flex-start;
+  }
+
+  .filters {
+    flex-direction: column;
+  }
+
+  .field.grow,
+  .select-field {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .tx-memo {
+    white-space: normal;
+  }
+
+  .tile-hero {
+    grid-column: 1 / -1;
+  }
+
+  .chart-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+
+
+/* ══ ccview-style transform (2026-08) ═══════════════════════════════
+   Sections, tile grid, hero tile, price chart, transfer feed. The chart
+   SERIES color is #7ba315 — a deeper step of the brand lime, validated
+   for the dark surface with the dataviz palette script (OKLCH L in band,
+   ≥3:1 vs --surface). --accent itself fails the mark-lightness band and
+   stays a UI color only. */
+
+.section-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.section-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ── Tiles ── */
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.tile:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+
+/* The sub-line hugs the bottom so a one-line tile and a two-line tile
+   still read as the same component. */
+.tile-sub {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.tile-hero {
+  background: linear-gradient(135deg, var(--hero-wash-a), var(--hero-wash-b) 62%),
+    var(--surface);
+  border-color: var(--hero-border);
+}
+
+.tile-val {
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.tile-val .cents {
+  color: var(--text-faint);
+}
+
+.tile-unit {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.tile-sub {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.45;
+}
+
+/* Party ids and other mono values shrink instead of shouting. */
+.tile-val.mono-sm {
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+/* Six economics tiles: an explicit 3-column rhythm (3×2) instead of
+   auto-fit, which was seating five per row and orphaning the sixth. */
+.tile-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 940px) {
+  .tile-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .tile-grid-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Live indicator — a pulse only where data actually self-refreshes. */
+.live-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none; }
+}
+
+.theme-toggle {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* ── Chart card ── */
+
+.chart-card {
+  padding: 20px 22px 14px;
+}
+
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.chart-price {
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-delta {
+  margin-left: 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-delta.pos { color: var(--green); }
+.chart-delta.neg { color: var(--red); }
+
+.chart-delta-win {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.chart-toggles {
+  display: flex;
+  gap: 4px;
+}
+
+.chart-toggle {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font: 500 12px var(--font-mono);
+  padding: 5px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chart-toggle.active {
+  color: var(--accent);
+  border-color: var(--hero-border);
+  background: var(--accent-soft);
+}
+
+.chart-wrap {
+  position: relative;
+}
+
+.chart-svg {
+  display: block;
+  width: 100%;
+  height: 220px;
+}
+
+.chart-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+.chart-tick {
+  fill: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.chart-crosshair {
+  stroke: var(--chart-crosshair);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart-tip {
+  position: absolute;
+  top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-2);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.chart-tip-val {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-tip-t {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 220px;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+.chart-foot {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+/* ── Transfer feed extras ── */
+
+.tx-chain-link {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.tx-chain-link:hover {
+  text-decoration: underline;
+}
+
+/* Economics tiles — value colors + the negative-net hero variant. Text
+   stays in text tokens; pos/neg are the reserved status colors. */
+.tile-val.pos { color: var(--green); }
+.tile-val.neg { color: var(--red); }
+
+.tile-hero-neg {
+  background: linear-gradient(135deg, rgba(255, 94, 122, 0.12), rgba(255, 94, 122, 0.02) 62%),
+    var(--surface);
+  border-color: rgba(255, 94, 122, 0.3);
+}
+
+/* ----- Day bars -------------------------------------------------
+   Discrete daily buckets, not a continuous series. See DayBars.tsx
+   for why this is not the area chart. */
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 16px 18px 14px;
+  min-width: 0;
+}
+
+.chart-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.chart-card-title {
+  font: 600 10.5px var(--font-mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.daybars { position: relative; }
+
+.daybars-plot {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 148px;
+}
+
+.daybars-grid { position: absolute; inset: 0; pointer-events: none; }
+
+.daybars-grid span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--chart-grid);
+}
+
+.daybar {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  min-width: 0;
+  cursor: default;
+}
+
+.daybar-fill {
+  width: 100%;
+  background: var(--chart-series);
+  border-radius: 3px 3px 0 0;
+  transition: opacity 120ms ease;
+}
+
+.daybar:hover .daybar-fill { opacity: 0.75; }
+
+.daybar-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-2);
+  white-space: nowrap;
+  z-index: 3;
+  font: 500 11.5px var(--font-mono);
+}
+
+.daybar-tip strong { color: var(--text); font-weight: 600; }
+.daybar-tip span { color: var(--text-faint); }
+
+.daybars-axis {
+  position: relative;
+  height: 16px;
+  margin-top: 7px;
+}
+
+.daybars-axis span {
+  position: absolute;
+  font: 500 10px var(--font-mono);
+  color: var(--text-faint);
+  transform: translateX(-50%);
+}
+
+.chart-empty,
+.chart-note {
+  font: 400 12px var(--font-sans);
+  color: var(--text-faint);
+  padding-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .chart-row { grid-template-columns: 1fr; }
+}
+
+/* ----- Breakdown table ------------------------------------------
+ *  The daily/weekly figures behind the day bars. Same vocabulary as
+ *  everything above it: mono + tabular-nums for every column of
+ *  figures, --green/--red reserved for sign, the existing
+ *  .chart-toggle pills for the Daily/Weekly switch and .btn.ghost
+ *  .inline for the export. Nothing new is introduced here that the
+ *  rest of the sheet does not already say.
+ *
+ *  Designed to sit inside a .card / .chart-card. The sticky date
+ *  column paints itself with --breakdown-surface so a caller that
+ *  puts the table on a different ground can correct it in one line
+ *  rather than fighting a hardcoded white.
+ * ---------------------------------------------------------------- */
+
+.breakdown {
+  --breakdown-surface: var(--surface);
+  min-width: 0;
+}
+
+.breakdown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.breakdown-title {
+  font: 600 10.5px var(--font-mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.breakdown-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* The overflow lives here, never on the page. A six-column table is
+   wider than a phone; the fix is a box that scrolls, not a document
+   that slides out from under its own heading. tabIndex on this
+   element makes the scroll reachable from the keyboard. */
+.breakdown-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--breakdown-surface);
+}
+
+.breakdown-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.breakdown-table {
+  width: 100%;
+  /* Below this the columns start wrapping their headers into three
+     lines each, which is when the scroll should take over instead. */
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.breakdown-caption {
+  caption-side: top;
+  text-align: left;
+  padding: 10px 14px 0;
+  font: 500 10px var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.breakdown-table th,
+.breakdown-table td {
+  padding: 9px 14px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+.breakdown-table thead th {
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding-top: 12px;
+  padding-bottom: 10px;
+}
+
+.breakdown-table tbody th {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.breakdown-table tbody tr:hover td,
+.breakdown-table tbody tr:hover th {
+  background: var(--hover-wash);
+}
+
+/* Figures: right-aligned and tabular, so a column of them can be read
+   as a column rather than as seven separate strings. */
+.breakdown-table .num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+
+.breakdown-table .num.pos { color: var(--green); }
+.breakdown-table .num.neg { color: var(--red); }
+
+/* The date column stays put while the figures scroll under it —
+   a number with no date beside it is not checkable. */
+.breakdown-table .breakdown-date-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--breakdown-surface);
+}
+
+.breakdown-table thead .breakdown-date-col {
+  z-index: 2;
+}
+
+.breakdown-table tbody tr:hover .breakdown-date-col {
+  /* The sticky cell is opaque, so the row hover has to be painted on
+     top of its own background rather than showing through it. */
+  background: linear-gradient(var(--hover-wash), var(--hover-wash)),
+    var(--breakdown-surface);
+}
+
+/* Total row: pinned at the bottom of the table, and the only bold
+   line in it. */
+.breakdown-table tfoot .breakdown-total th,
+.breakdown-table tfoot .breakdown-total td {
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 0;
+  font-weight: 700;
+  color: var(--text);
+  background: var(--breakdown-surface);
+}
+
+/* The day count rides beside the word "Total" as an inline span —
+   deliberately not a flex cell, since display:flex on a <th> drops it
+   out of the table's column sizing and the figures stop lining up. */
+.breakdown-total-sub {
+  margin-left: 8px;
+  font: 400 10px var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+/* Empty window: one sentence, not a grid of zeros. */
+.breakdown-empty {
+  padding: 18px 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-2);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  max-width: 62ch;
+}
+
+@media (max-width: 700px) {
+  .breakdown-head {
+    align-items: flex-start;
+  }
+
+  .breakdown-table th,
+  .breakdown-table td {
+    padding: 8px 11px;
+  }
+}
+
+/* ----- Integrate: connect reference ------------------------------
+   Rows, not a table. The unit a reader wants is "method → what it
+   costs → what it does", which is a definition, and a three-column
+   table of nine rows is a wall they scan past. Grid keeps the name
+   and scope columns aligned without the table semantics. */
+
+.code-block {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 15px 17px;
+  overflow-x: auto;
+  margin: 16px 0 6px;
+  font: 400 12.5px/1.65 var(--font-mono);
+  color: var(--text);
+}
+
+.code-block code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+}
+
+.sub-head {
+  margin: 26px 0 10px;
+  font: 600 10px var(--font-mono);
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.ref-list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ref-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 210px) 74px minmax(0, 1fr);
+  gap: 14px;
+  align-items: baseline;
+  padding: 11px 15px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ref-row:last-child { border-bottom: 0; }
+.ref-row:hover { background: var(--hover-wash); }
+
+.ref-name {
+  font: 500 12.5px var(--font-mono);
+  color: var(--text);
+  background: none;
+  border: 0;
+  padding: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Struck through rather than dropped: someone who finds these in the
+   type definitions needs to learn here that they always refuse. */
+.ref-row.dead .ref-name { text-decoration: line-through; color: var(--text-faint); }
+.ref-row.dead .ref-what { color: var(--text-faint); }
+
+.ref-scope {
+  justify-self: start;
+  font: 600 9.5px var(--font-mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.scope-prompt { color: var(--accent); background: var(--accent-soft); }
+.scope-ledger { color: var(--amber); background: rgba(154, 109, 0, 0.1); }
+.scope-read,
+.scope-open { color: var(--text-faint); background: var(--surface-2); }
+.scope-none { color: var(--text-faint); background: transparent; }
+
+.ref-what {
+  font: 400 13px/1.55 var(--font-sans);
+  color: var(--text-dim);
+  min-width: 0;
+}
+
+.ref-what code {
+  font-size: 0.88em;
+}
+
+@media (max-width: 720px) {
+  .ref-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 10px;
+  }
+  .ref-what { grid-column: 1 / -1; }
+}
+
+/* ─────────────────────────── API keys ───────────────────────────
+ *
+ * Namespaced `kf-` / `key-` because `.field` and `.check` already mean
+ * other things above, and a keys screen silently inheriting an input
+ * wrapper's flex rules is a bug nobody would think to look for.
+ */
+
+.dim { color: var(--text-dim); }
+.small { font-size: 12.5px; }
+
+/* form ------------------------------------------------------------ */
+.key-form { display: flex; flex-direction: column; gap: 18px; }
+
+.kf { display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0;
+      background: none; }
+.kf > span, .kf > legend { font-size: 13px; font-weight: 600; color: var(--text); }
+.kf > span em { font-style: normal; font-weight: 400; color: var(--text-faint); }
+.kf small { color: var(--text-dim); font-size: 12.5px; }
+.kf input[type="text"], .kf input:not([type]), .kf textarea {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; color: var(--text);
+  font: 400 14px/1.5 var(--font-sans); width: 100%; resize: vertical;
+}
+.kf input:focus, .kf textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.kf-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.kf-check { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 10px;
+            align-items: center; padding: 8px 0; }
+.kf-check input { margin: 0; accent-color: var(--accent); }
+.kf-check code { font: 500 13px var(--font-mono); }
+.kf-check small { grid-column: 3; color: var(--text-dim); }
+
+.kf-problems { margin: 0; padding-left: 18px; color: var(--amber);
+               font-size: 13px; line-height: 1.7; }
+
+/* rows ------------------------------------------------------------ */
+.key-row { display: flex; flex-direction: column; gap: 12px; }
+.key-row.is-frozen { opacity: 0.62; }
+.key-head { display: flex; justify-content: space-between; align-items: flex-start;
+            gap: 16px; flex-wrap: wrap; }
+.key-head h3 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center;
+               gap: 8px; }
+.key-prefix { font: 400 12.5px var(--font-mono); color: var(--text-dim); }
+.key-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.key-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+            font-size: 12.5px; }
+.key-chip { font: 500 11.5px var(--font-mono); padding: 4px 8px; border-radius: 6px;
+            background: var(--surface-2); border: 1px solid var(--border);
+            color: var(--text-dim); }
+.key-chip.warn { color: var(--amber); border-color: var(--amber); }
+.key-foot { border-top: 1px solid var(--border); padding-top: 10px; }
+
+/* the one-time secret --------------------------------------------- */
+.modal-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.62);
+               display: flex; align-items: center; justify-content: center;
+               padding: 24px; z-index: 60; }
+.modal { background: var(--surface); border: 1px solid var(--border-strong);
+         border-radius: 16px; padding: 26px; max-width: 560px; width: 100%;
+         box-shadow: 0 24px 60px rgba(0,0,0,0.4); }
+.modal h2 { margin: 6px 0 10px; font-size: 20px; }
+.modal p { margin: 0 0 4px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.code-block.secret { user-select: all; word-break: break-all; white-space: pre-wrap;
+                     border-color: var(--accent); }
+
+@media (max-width: 620px) {
+  .kf-row { grid-template-columns: 1fr; }
+  .key-head { flex-direction: column; }
+}
