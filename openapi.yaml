@@ -37,15 +37,15 @@ info:
     | This API | `https://slay-api-wallet-providers.slay-money-api.workers.dev` |
     | Everything else | `https://slay-money-api.slay-money-api.workers.dev` |
 
-    Only `/api/v1` lives here. Issuing a key, applying for approval, prices,
-    and every other Slay route are on the main API and are **not** reachable on
+    Only `/api/v1` lives here. Issuing a key (`POST /api/keys`), applying for
+    approval, prices, and every other Slay route are on the main API and are **not** reachable on
     this host — they answer 404 with a message saying so. The split is
     deliberate: this Worker deploys from a reviewed tag on a slow cadence, so
     Slay shipping a feature cannot move your traffic.
 
     ## Getting a key
 
-    Issue one from **Dashboard → Build → API keys** (`POST /api/agents` on the
+    Issue one from **Dashboard → Build → API keys** (`POST /api/keys` on the
     main API, authenticated with a signed-in session — not with a key, and not
     on this host). Only a signed-in human can: a key cannot create another key,
     so a leaked one cannot quietly issue itself successors.
@@ -511,9 +511,9 @@ components:
         hashed on arrival, so the value is shown once at creation and cannot be
         recovered — if it is lost, rotate the key rather than hunting for it.
 
-        The endpoint that mints one is `POST /api/agents`, and a few internals
-        still use that older word. Same credential — "API key" is the name that
-        matters to you.
+        The endpoint that mints one is `POST /api/keys` on the main API. Some
+        internals — the older `/api/agents` path, which still works, and the
+        table behind it — use the word "agent". Same credential.
 
         Keys are not interchangeable with sign-in. A session cookie will not
         authenticate here, and a key will not authenticate the routes a signed-in

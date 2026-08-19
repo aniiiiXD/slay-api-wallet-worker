@@ -119,7 +119,7 @@ export function validateRestrictions(
   if (canWrite && !tradingApproved) {
     throw new HttpError(
       403,
-      "trading_not_approved — this account cannot create money-moving agents yet."
+      "trading_not_approved — this account cannot create money-moving keys yet."
     );
   }
 
@@ -318,7 +318,7 @@ export async function createAgent(
   live = true
 ) {
   if (!name?.trim()) {
-    throw new HttpError(422, "name is required — it identifies the agent in logs.");
+    throw new HttpError(422, "name is required — it identifies the key in logs.");
   }
 
   const trading = await getTradingStatus(db, userId);
@@ -374,7 +374,7 @@ export async function revokeAgent(
     .where(and(eq(schema.agents.id, agentId), eq(schema.agents.userId, userId)))
     .returning({ id: schema.agents.id });
 
-  if (res.length === 0) throw new HttpError(404, "Agent not found.");
+  if (res.length === 0) throw new HttpError(404, "No such key.");
   await audit(db, userId, actor, "agent.revoke", agentId);
 }
 
@@ -391,7 +391,7 @@ export async function setFrozen(
     .where(and(eq(schema.agents.id, agentId), eq(schema.agents.userId, userId)))
     .returning();
 
-  if (res.length === 0) throw new HttpError(404, "Agent not found.");
+  if (res.length === 0) throw new HttpError(404, "No such key.");
   await audit(
     db,
     userId,
@@ -440,7 +440,7 @@ export async function rotateAgent(
     .where(and(eq(schema.agents.id, agentId), eq(schema.agents.userId, userId)))
     .limit(1);
 
-  if (!old) throw new HttpError(404, "Agent not found.");
+  if (!old) throw new HttpError(404, "No such key.");
 
   const grace = Math.min(Math.max(graceSeconds, 0), 86400);
   const oldExpiresAt = new Date(Date.now() + grace * 1000);
@@ -694,7 +694,7 @@ export async function listRequests(
     .from(schema.agents)
     .where(and(eq(schema.agents.id, agentId), eq(schema.agents.userId, userId)))
     .limit(1);
-  if (!owned) throw new HttpError(404, "Agent not found.");
+  if (!owned) throw new HttpError(404, "No such key.");
 
   return db
     .select()

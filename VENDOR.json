@@ -5,8 +5,8 @@
     {
       "path": "src/agents/service.ts",
       "upstream": "src/agents/service.ts",
-      "localSha": "2828091df2bd1dc8359208cbcb27160f43aea174cb5f2e3a37a1eeeff31ba740",
-      "upstreamSha": "2828091df2bd1dc8359208cbcb27160f43aea174cb5f2e3a37a1eeeff31ba740"
+      "localSha": "bf7779b32eef820df8bf549ee649b22914c2eeb298427061ed5bffaf651b2e78",
+      "upstreamSha": "bf7779b32eef820df8bf549ee649b22914c2eeb298427061ed5bffaf651b2e78"
     },
     {
       "path": "src/agents/v1.ts",
@@ -357,6 +357,6 @@
       "upstreamSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086"
     }
   ],
-  "acceptedAt": "2026-08-19T18:13:12.394Z",
+  "acceptedAt": "2026-08-19T18:28:55.673Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }
