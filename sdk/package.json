@@ -1,0 +1,43 @@
+{
+  "name": "@slay/wallet",
+  "version": "1.0.0",
+  "description": "Client for the Slay wallet provider API. Zero dependencies.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cc": {
+      "types": "./dist/cc.d.ts",
+      "import": "./dist/cc.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/**/*.test.js\"",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "slay",
+    "canton",
+    "wallet",
+    "cc"
+  ],
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2"
+  }
+}
