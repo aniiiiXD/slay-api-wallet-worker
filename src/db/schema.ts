@@ -11,7 +11,9 @@ import {
   index,
   numeric,
   doublePrecision,
+  check,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 /* ------------------------------------------------------------------ */
 /*  Better Auth tables — names and columns must match Better Auth's    */
@@ -2248,3 +2250,78 @@ export const walletProviderConfig = pgTable("wallet_provider_config", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 export type WalletProviderConfigRow = typeof walletProviderConfig.$inferSelect;
+
+/* ------------------------------------------------------------------ *
+ *  Wallets a partner created on behalf of their own users
+ *
+ *  A sub-account is a real `users` row. Everything downstream already keys
+ *  off userId — wallets, transactions, Canton parties, the send path, KMS
+ *  signing, the fee engine — so a parallel wallet type would mean
+ *  reimplementing all of it and keeping the two in agreement forever.
+ *
+ *  This table records only the ownership: who created it, and what they call
+ *  it. Nothing reads it yet; it lands ahead of the code so the expand step is
+ *  a deploy of its own.
+ * ------------------------------------------------------------------ */
+export const partnerWallets = pgTable(
+  "partner_wallets",
+  {
+    id: text("id").primaryKey(),
+
+    /** The partner's own Slay account — the one that pays and is capped. */
+    providerUserId: text("provider_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    /** The sub-account. A `users` row that never signs in. */
+    walletUserId: text("wallet_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    /**
+     * The partner's own id for this user, not ours.
+     *
+     * It is what makes creation idempotent — a retried signup returns the same
+     * wallet rather than a second one — and it means a partner never has to
+     * store a mapping to talk to us.
+     */
+    externalRef: text("external_ref").notNull(),
+
+    /**
+     * `provisioning` until a Canton party exists. Text rather than an enum:
+     * a Postgres enum value can never be dropped, and a status list that is
+     * one migration from being wrong is not worth a one-way door.
+     */
+    status: text("status")
+      .$type<"provisioning" | "ready" | "frozen">()
+      .notNull()
+      .default("provisioning"),
+
+    /** Free-form, for the partner's own dashboards. Never interpreted here. */
+    label: text("label"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    /* A wallet cannot own itself. Enforced in the migration as a CHECK too —
+     * one malformed row would make the billing question answer itself. */
+    notSelf: check("partner_wallets_not_self", sql`${t.providerUserId} <> ${t.walletUserId}`),
+    /** One wallet per partner reference — the idempotency key for creation. */
+    byProviderRef: uniqueIndex("partner_wallets_provider_ref_idx").on(
+      t.providerUserId,
+      t.externalRef
+    ),
+    /**
+     * A sub-account has exactly ONE owner.
+     *
+     * Unique rather than a plain index, and it is the load-bearing constraint
+     * here: two providers claiming the same wallet would make "which account
+     * pays for this send" ambiguous, and the answer would be decided by row
+     * order. The database refuses instead.
+     */
+    byWalletUser: uniqueIndex("partner_wallets_wallet_user_idx").on(t.walletUserId),
+    byProvider: index("partner_wallets_provider_idx").on(t.providerUserId, t.createdAt),
+  })
+);
+export type PartnerWalletRow = typeof partnerWallets.$inferSelect;
