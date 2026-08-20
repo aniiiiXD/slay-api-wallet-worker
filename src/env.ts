@@ -193,6 +193,18 @@ export type Env = {
   AGENT_AUTO_APPROVE_PER_TX?: string;
   AGENT_AUTO_APPROVE_PER_DAY?: string;
   AGENT_ALERT_EMAIL?: string;
+
+  /**
+   * "1" makes the free tier belong to the account that PAYS rather than to
+   * the wallet that sent — a provider's sub-accounts share the provider's
+   * three sends a day instead of getting three each.
+   *
+   * Inert until a partner wallet exists: with no rows in partner_wallets
+   * every account bills to itself. The flag is here so the extra lookup can
+   * be switched off as well, and so the behaviour can be reverted by changing
+   * a secret rather than by shipping a deploy.
+   */
+  PARTNER_BILLING_ENABLED?: string;
   // --- On-chain (Daml) wiring ---------------------------------------------
   // Package id of the uploaded slay-money DAR. Use `daml damlc inspect-dar`
   // to look up after `daml build` if you don't know it. Required when any

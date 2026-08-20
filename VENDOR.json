@@ -155,8 +155,8 @@
     {
       "path": "src/env.ts",
       "upstream": "src/env.ts",
-      "localSha": "96eb4e3250865458c75ae67c4dd16befc0ddd29294773bada3710dea11259550",
-      "upstreamSha": "96eb4e3250865458c75ae67c4dd16befc0ddd29294773bada3710dea11259550"
+      "localSha": "3d4bf4bd6fcf3515a70198842a819ae94f1711a31fc6926b1446b403e280d452",
+      "upstreamSha": "3d4bf4bd6fcf3515a70198842a819ae94f1711a31fc6926b1446b403e280d452"
     },
     {
       "path": "src/fees/network-fees.ts",
@@ -167,8 +167,8 @@
     {
       "path": "src/fees/send-fees.ts",
       "upstream": "src/fees/send-fees.ts",
-      "localSha": "51387ef6599c5bc4d6e4301f028929e89ef04de09d7aedd518cec7cad9308c54",
-      "upstreamSha": "51387ef6599c5bc4d6e4301f028929e89ef04de09d7aedd518cec7cad9308c54"
+      "localSha": "b5aac55eb55126b7da564c865779ce61c0e303def2dade66d3d0c5dfd9c559da",
+      "upstreamSha": "b5aac55eb55126b7da564c865779ce61c0e303def2dade66d3d0c5dfd9c559da"
     },
     {
       "path": "src/hecto/accept.ts",
@@ -253,6 +253,12 @@
       "upstream": "src/oracle-markets/oracle.ts",
       "localSha": "2b7a69d96dacd6819734244656b9aada2ef4666a39dab177e08c77830c964d3f",
       "upstreamSha": "2b7a69d96dacd6819734244656b9aada2ef4666a39dab177e08c77830c964d3f"
+    },
+    {
+      "path": "src/partner/billing.ts",
+      "upstream": "src/partner/billing.ts",
+      "localSha": "ded43b83594fdef035309160fddf3abfc9bfe9e4489fa7ee471d97a10c9c2164",
+      "upstreamSha": "ded43b83594fdef035309160fddf3abfc9bfe9e4489fa7ee471d97a10c9c2164"
     },
     {
       "path": "src/prices/cbtc.ts",
@@ -375,6 +381,6 @@
       "upstreamSha": "ac39382c0474e3208212bfa26fa685ba33d781f7f211dd751701087c4514c434"
     }
   ],
-  "acceptedAt": "2026-08-20T12:12:17.033Z",
+  "acceptedAt": "2026-08-20T12:21:33.674Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }
