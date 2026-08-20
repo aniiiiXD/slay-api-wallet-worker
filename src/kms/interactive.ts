@@ -13,6 +13,7 @@
 import type { Env } from "../env";
 import { signForUser, type EncryptedKey } from "./keys";
 import { synchronizerId } from "../splice/traffic";
+import { singleFlight } from "../lib/reliability";
 
 const toB64 = (u: Uint8Array) => Buffer.from(u).toString("base64");
 const b64ToBytes = (s: string) => new Uint8Array(Buffer.from(s, "base64"));
@@ -261,6 +262,39 @@ async function assetInstrument(env: Env, asset: RegistryAsset): Promise<{ id: st
 const HOLDING_IFACE = "#splice-api-token-holding-v1:Splice.Api.Token.HoldingV1:Holding";
 
 /**
+ * Ledger-end offset, memoised for a beat. A wallet load reads four token
+ * balances (CBTC/cETH/tUSD/HECTO) plus CC, and each was paying its own
+ * ledger-end round trip before it could even ask for holdings. The offset is
+ * party- and asset-independent, so they can share one.
+ *
+ * The TTL is deliberately ~1s, not the balance cache's 20s: a send
+ * invalidates the balance cache and the next read must see the transfer that
+ * just settled. An offset a second old is within the same window the ledger
+ * itself is still catching up in; a longer memo could read the chain from
+ * before the user's own transfer and show them a balance that already moved.
+ */
+const LEDGER_END_TTL_MS = 1_000;
+let ledgerEndMemo: { offset: number; ts: number } | null = null;
+
+async function ledgerEndOffset(host: string, token: string): Promise<number> {
+  const now = Date.now();
+  if (ledgerEndMemo && now - ledgerEndMemo.ts < LEDGER_END_TTL_MS) {
+    return ledgerEndMemo.offset;
+  }
+  return singleFlight("ledger-end-offset", async () => {
+    if (ledgerEndMemo && Date.now() - ledgerEndMemo.ts < LEDGER_END_TTL_MS) {
+      return ledgerEndMemo.offset;
+    }
+    const endRes = await fetch(`${host}/v2/state/ledger-end`, {
+      headers: { authorization: `Bearer ${token}`, accept: "application/json" },
+    });
+    const offset = Number(((await endRes.json()) as { offset?: string }).offset);
+    ledgerEndMemo = { offset, ts: Date.now() };
+    return offset;
+  });
+}
+
+/**
  * Sum a party's on-chain holdings for one registry asset, in smallest units,
  * read DIRECTLY from the ledger via the Holding interface view (the registry
  * holdings API 404s for non-registered parties; this is what the transfer
@@ -274,8 +308,7 @@ export async function onChainRegistryBalanceSat(
   const { id: wantInstrument, decimals } = await assetInstrument(env, asset);
   const host = (env.JSON_API_URL ?? "").replace(/\/$/, "");
   const token = env.JSON_LEDGER_ADMIN_TOKEN ?? "";
-  const endRes = await fetch(`${host}/v2/state/ledger-end`, { headers: { authorization: `Bearer ${token}`, accept: "application/json" } });
-  const activeAtOffset = Number(((await endRes.json()) as { offset?: string }).offset);
+  const activeAtOffset = await ledgerEndOffset(host, token);
   const res = await fetch(`${host}/v2/state/active-contracts`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: "application/json" },

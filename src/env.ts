@@ -6,6 +6,7 @@ export type Env = {
   // Durable Object: live Pyth spot fan-out for the crypto up/down graph.
   PRICE_STREAM: DurableObjectNamespace;
   POLYMARKET_STREAM: DurableObjectNamespace;
+  TWAP_STREAM: DurableObjectNamespace;
   M2M_TOKEN_CACHE?: KVNamespace;
   /** R2 bucket holding profile pictures. Optional so a deploy without the
    *  bucket still boots — the avatar routes 503 instead of the Worker dying. */
@@ -638,8 +639,29 @@ export type Env = {
    *  Independent of PM_BET_LIVE, which still gates whether escrow/payout are
    *  real on-chain (1) or Postgres-only simulation (0). */
   PM_UNHEDGED?: string; // default "1"
+  /** Onboard new users onto their OWN KMS-keyed `slay-money::` party rather
+   *  than a Splice-custodial one. Default ON — self-custody is the model, and a
+   *  custodially-onboarded user is invisible to looksExternalParty(), so their
+   *  balance reads from the pg shadow and their sends can't be KMS-signed.
+   *  Set "0" only as an escape hatch if external signing is down. */
+  SELF_CUSTODY_ONBOARDING?: string;
   /** "1" = refuse real-user PM bets (bots-only monitoring window). */
   PM_BOTS_ONLY?: string;
+  /** STAGED ROLLOUT — restrict betting to specific app builds while the master
+   *  switches are on. Comma-separated `platform@version` or
+   *  `platform@version+build` entries, matched against the client's
+   *  `x-slay-app` header (e.g. "ios@1.0.0" or "ios@1.0.0+22").
+   *
+   *  Empty/unset = every client (current behaviour). When SET, a client that
+   *  sends no header is REFUSED — that is the point: old builds predate the
+   *  header and must not be let in. Android is on its own version line
+   *  (1.0.1), so "ios@1.0.0" cleanly isolates the iOS line. */
+  PM_BET_ALLOWED_APPS?: string;
+  /** Comma-separated emails that may always bet, regardless of
+   *  PM_BET_ALLOWED_APPS. For App Store review accounts and our own testing —
+   *  it needs no app change, so it works on builds already in the wild. Still
+   *  requires the master PM_BET_ENABLED / POLYMARKET_MIRROR_ENABLED. */
+  PM_BET_ALLOWLIST?: string;
   /** Exposure caps (USD), enforced at placement for REAL users only — bots
    *  never create real exposure. A cap ≤ 0 disables that check.
    *   · USER_ROUND  — max a single user can stake on one window.
@@ -654,6 +676,24 @@ export type Env = {
   /** USD stake bounds per bet (validated only when the FX rates below are set). */
   PM_MIN_STAKE_USD?: string; // default 1
   PM_MAX_STAKE_USD?: string; // default 100
+  /** Max cents the live book may have moved between the price the user tapped
+   *  and the price we fill at. Beyond it the bet is REFUSED and the user
+   *  re-confirms, rather than being silently filled at a price they never saw.
+   *  0 disables the check (don't — that's the bug this shipped to fix). */
+  PM_MAX_SLIPPAGE_CENTS?: string; // default 3
+  /** Minimum price (in cents) a REAL user may back. Below it the payout
+   *  multiplier runs away — 10c pays ~9.8x, 2c pays ~49x — and in the
+   *  un-hedged model the treasury funds all of it. Bots are exempt (they
+   *  settle in simulation). 0 disables the floor. */
+  PM_MIN_ODDS_CENTS?: string; // default 10
+  /** Early close ("cash out"), the mirror of Polymarket's sell. Off unless
+   *  "1". Value is marked to market off the live book:
+   *      stake × (livePrice / entryPrice) × (1 − SPREAD_BPS)
+   *  CUTOFF_SEC refuses a close in the last seconds of a window, where the
+   *  book is thin and the outcome is nearly known. */
+  PM_CASHOUT_ENABLED?: string;
+  PM_CASHOUT_SPREAD_BPS?: string; // default 300 (3%)
+  PM_CASHOUT_CUTOFF_SEC?: string; // default 20
   /** Placeholder FX until the Phase-3 oracle: USD per 1 CC / 1 CBTC. 0/unset →
    *  usdEquiv recorded as 0 and stake bounds skipped (dry-run scaffolding). */
   PM_CC_USD?: string;

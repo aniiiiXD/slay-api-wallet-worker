@@ -56,7 +56,9 @@ export async function getCachedOnChainCcBalance(env: Env, party: string): Promis
       }
     }
     try {
-      const cc = await getBreaker("ledger-balance", {
+      // Per-asset breaker (see self-custody.ts) — CC must not be taken down
+      // by a token registry's failures, and vice versa.
+      const cc = await getBreaker("ledger-balance:CC", {
         failureThreshold: 4,
         cooldownMs: 20_000,
         timeoutMs: 10_000,

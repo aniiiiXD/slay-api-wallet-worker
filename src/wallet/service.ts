@@ -16,6 +16,7 @@ import {
 } from "../splice/client";
 import { grantUserActAs } from "../canton/ledger";
 import { isPartyCreationDisabled } from "../slay-rewards/config";
+import { selfCustodyOnboarding } from "../kms/provision";
 import {
   fetchTransferPreapproval,
   transferAmulet,
@@ -150,6 +151,22 @@ export async function attachCantonParty(
       .toLowerCase()
       .replace(/[^a-z0-9]/g, "")
       .slice(0, 30) || "user";
+
+  // SELF-CUSTODY (the model). Everything below this block onboards through the
+  // Splice validator, which mints a CUSTODIAL party hinted with the user's
+  // email local part. looksExternalParty() only recognises `slay-money::`, so
+  // such a user silently lands outside self-custody: balances read from the pg
+  // shadow, sends can't be KMS-signed, no key of their own. Every party created
+  // since the cutover went that way — including the leaderboard and coupon
+  // paths, which call this directly to bypass the party-creation freeze.
+  if (selfCustodyOnboarding(env)) {
+    const { provisionSelfCustodyParty } = await import("../kms/provision");
+    const r = await provisionSelfCustodyParty(env, db, userId);
+    console.log(
+      `[wallet.attachCantonParty] self-custody party user=${userId.slice(0, 8)}… ${r.partyId} reused=${r.reused}`
+    );
+    return;
+  }
 
   // Splice path — onboard via the Validator API. Splice handles the party
   // allocation + holding-account setup atomically server-side. Returns the

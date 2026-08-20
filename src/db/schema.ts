@@ -1195,6 +1195,7 @@ export const pmBetStatusEnum = pgEnum("pm_bet_status", [
   "lost",
   "void", // hedge never filled → refunded
   "refunded", // PM voided the window → refunded
+  "cashed_out", // closed early by the user, before the window resolved
 ]);
 
 export const pmPositions = pgTable("pm_positions", {
@@ -1228,6 +1229,14 @@ export const pmPositions = pgTable("pm_positions", {
   escrowTxId: text("escrow_tx_id"),
   chainBetCid: text("chain_bet_cid"), // Slay.PmMirror:PmBet cid on v2
   settleTxId: text("settle_tx_id"),
+  // Early close ("cash out"), the mirror of Polymarket's sell. The position is
+  // marked to market off the live book: cashoutOddsCents is the price the
+  // user's side was trading at when they closed, cashoutRaw is what they got
+  // back in the staked asset, cashoutTxId the operator→user on-chain leg.
+  cashoutRaw: bigint("cashout_raw", { mode: "number" }),
+  cashoutOddsCents: integer("cashout_odds_cents"),
+  cashedOutAt: timestamp("cashed_out_at", { withTimezone: true }),
+  cashoutTxId: text("cashout_tx_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   settledAt: timestamp("settled_at", { withTimezone: true }),
 });
@@ -2225,7 +2234,12 @@ export const walletProviderConfig = pgTable("wallet_provider_config", {
    */
   enabledTokens: jsonb("enabled_tokens").$type<string[] | null>(),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  /* withTimezone, like all 35 other tables here. It was the one declaration
+   * without it, and a bare `timestamp` in Postgres discards the offset — so
+   * two Workers in different regions would disagree about when a row was
+   * written. Free to fix while the table does not exist yet; a migration
+   * once it does. */
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 export type WalletProviderConfigRow = typeof walletProviderConfig.$inferSelect;

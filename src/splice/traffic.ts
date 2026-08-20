@@ -84,7 +84,7 @@ export type BuyTrafficResult = {
 export async function buyMemberTraffic(
   env: Env,
   trafficBytes: number,
-  opts: { estimatedCostCc?: number; dryRun?: boolean } = {}
+  opts: { estimatedCostCc?: number; dryRun?: boolean; memberId?: string } = {}
 ): Promise<BuyTrafficResult & { arg?: unknown }> {
   const bytes = Math.floor(trafficBytes);
   if (!Number.isFinite(bytes) || bytes <= 0) {
@@ -95,6 +95,12 @@ export async function buyMemberTraffic(
   // env defensively — a non-numeric value must not become "NaN" in the arg.
   const parsedMig = Number(env.SPLICE_MIGRATION_ID);
   const migrationId = Number.isFinite(parsedMig) && parsedMig >= 0 ? parsedMig : 4;
+  const rawMember = (opts.memberId ?? "").trim();
+  const memberIdArg = rawMember
+    ? rawMember.startsWith("PAR::")
+      ? rawMember
+      : `PAR::${rawMember}`
+    : participantMemberId(env);
 
   // Cost estimate only picks a covering input; the choice computes the exact
   // burn and returns change. MainNet is ~600-900 CC/MB — pad generously.
@@ -129,7 +135,11 @@ export async function buyMemberTraffic(
         featuredAppRight: null,
       },
       provider: operator,
-      memberId: participantMemberId(env),
+      // Which member RECEIVES the traffic. Defaults to our own participant;
+      // pass it to top up the second validator, whose participant sits on the
+      // same global synchronizer but has no operator amulet of its own to pay
+      // with — the burn is ours either way, only the grantee differs.
+      memberId: memberIdArg,
       synchronizerId: synchronizerId(env),
       migrationId: String(migrationId),
       trafficAmount: String(bytes),

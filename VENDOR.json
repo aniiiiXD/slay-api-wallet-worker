@@ -3,6 +3,12 @@
   "upstreamRepo": "slay-money-api-swap",
   "files": [
     {
+      "path": "scripts/gen-openapi.mjs",
+      "upstream": "scripts/gen-openapi.mjs",
+      "localSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086",
+      "upstreamSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086"
+    },
+    {
       "path": "src/agents/service.ts",
       "upstream": "src/agents/service.ts",
       "localSha": "bf7779b32eef820df8bf549ee649b22914c2eeb298427061ed5bffaf651b2e78",
@@ -131,8 +137,8 @@
     {
       "path": "src/db/schema.ts",
       "upstream": "src/db/schema.ts",
-      "localSha": "ad91da7887b3349c8fc92cdf4bb05621de662ab144e62c336113399ec66837f4",
-      "upstreamSha": "ad91da7887b3349c8fc92cdf4bb05621de662ab144e62c336113399ec66837f4"
+      "localSha": "cae343b02df2e5011c3c5fab0a14eb2745832a1e4e7d82bdcee8ab447593b8e2",
+      "upstreamSha": "cae343b02df2e5011c3c5fab0a14eb2745832a1e4e7d82bdcee8ab447593b8e2"
     },
     {
       "path": "src/docs/render.ts",
@@ -149,8 +155,8 @@
     {
       "path": "src/env.ts",
       "upstream": "src/env.ts",
-      "localSha": "6ef6dcf38dae2b7e95f0ab671962024fbc7d70a5504610d3a7523c62e00ef261",
-      "upstreamSha": "6ef6dcf38dae2b7e95f0ab671962024fbc7d70a5504610d3a7523c62e00ef261"
+      "localSha": "96eb4e3250865458c75ae67c4dd16befc0ddd29294773bada3710dea11259550",
+      "upstreamSha": "96eb4e3250865458c75ae67c4dd16befc0ddd29294773bada3710dea11259550"
     },
     {
       "path": "src/fees/network-fees.ts",
@@ -201,16 +207,28 @@
       "upstreamSha": "32da69773864d08e89e67f9e89dd7684ba80255057a38228970c4d4a0a0ef4e1"
     },
     {
+      "path": "src/kms/external-party.ts",
+      "upstream": "src/kms/external-party.ts",
+      "localSha": "fb7583bb971a7e8f8e28f85555eb65a2243476aaf94342059c7649418875adee",
+      "upstreamSha": "fb7583bb971a7e8f8e28f85555eb65a2243476aaf94342059c7649418875adee"
+    },
+    {
       "path": "src/kms/interactive.ts",
       "upstream": "src/kms/interactive.ts",
-      "localSha": "429343476fe5afb25c1514dc5dbdc17fa35453cf314949c9961dc36b8fa8fa74",
-      "upstreamSha": "429343476fe5afb25c1514dc5dbdc17fa35453cf314949c9961dc36b8fa8fa74"
+      "localSha": "fc30c5cd174fc678faec37f5e9b1cbcd156db71efa0d0a7317d470ee6d7ca551",
+      "upstreamSha": "fc30c5cd174fc678faec37f5e9b1cbcd156db71efa0d0a7317d470ee6d7ca551"
     },
     {
       "path": "src/kms/keys.ts",
       "upstream": "src/kms/keys.ts",
       "localSha": "e4dbc9134fcf4230c9ae23f466bac3792def08dc29d72ce90c240803e6695f0c",
       "upstreamSha": "e4dbc9134fcf4230c9ae23f466bac3792def08dc29d72ce90c240803e6695f0c"
+    },
+    {
+      "path": "src/kms/provision.ts",
+      "upstream": "src/kms/provision.ts",
+      "localSha": "399d5cb006787f8e2f4938739d00463a8d9485448ed9ee565253d32dd757b7ec",
+      "upstreamSha": "399d5cb006787f8e2f4938739d00463a8d9485448ed9ee565253d32dd757b7ec"
     },
     {
       "path": "src/kms/router.ts",
@@ -299,8 +317,8 @@
     {
       "path": "src/splice/traffic.ts",
       "upstream": "src/splice/traffic.ts",
-      "localSha": "765d4a587d9ee6b368ed1c1c98ef1ca2183e561fcf09d37279008436657868db",
-      "upstreamSha": "765d4a587d9ee6b368ed1c1c98ef1ca2183e561fcf09d37279008436657868db"
+      "localSha": "bae1ff92e543767c42a8b1cb3e4f333d1423210f7bdb82fbe5c6c660eef0011e",
+      "upstreamSha": "bae1ff92e543767c42a8b1cb3e4f333d1423210f7bdb82fbe5c6c660eef0011e"
     },
     {
       "path": "src/tusd/accept.ts",
@@ -341,22 +359,16 @@
     {
       "path": "src/wallet/balance-cache.ts",
       "upstream": "src/wallet/balance-cache.ts",
-      "localSha": "78791d21d53a923d9125a70884ef625c493903a6f4b028fd96d2c3ab7284501f",
-      "upstreamSha": "78791d21d53a923d9125a70884ef625c493903a6f4b028fd96d2c3ab7284501f"
+      "localSha": "3d81982827306e808727486014112d2c3b87d1f2fb170a5cc58b4764c367a13c",
+      "upstreamSha": "3d81982827306e808727486014112d2c3b87d1f2fb170a5cc58b4764c367a13c"
     },
     {
       "path": "src/wallet/service.ts",
       "upstream": "src/wallet/service.ts",
-      "localSha": "87ca7854791647cbe9b7de66590213445d17937224baecbc7cca59a554140a22",
-      "upstreamSha": "87ca7854791647cbe9b7de66590213445d17937224baecbc7cca59a554140a22"
-    },
-    {
-      "path": "scripts/gen-openapi.mjs",
-      "upstream": "scripts/gen-openapi.mjs",
-      "localSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086",
-      "upstreamSha": "f2e4fcd012f7daf299b62635951b51f2a00dcd357cac2685b2260a3402c9f086"
+      "localSha": "c2bcb6d1f2e00d1124b4ff1e796771ee49c916f89def3d91caea8df4192a39eb",
+      "upstreamSha": "c2bcb6d1f2e00d1124b4ff1e796771ee49c916f89def3d91caea8df4192a39eb"
     }
   ],
-  "acceptedAt": "2026-08-19T19:33:15.907Z",
+  "acceptedAt": "2026-08-20T03:57:51.788Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }
