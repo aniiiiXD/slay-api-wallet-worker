@@ -3,9 +3,16 @@
 Three files, no build step, no server: the partner API reference rendered to
 static HTML, plus the spec it came from.
 
-    index.html     the rendered reference — one file, no external assets
-    openapi.json   the spec, generated
-    openapi.yaml   the spec, source of truth
+    index.html                the rendered reference — one file, no external assets
+    openapi.json              the spec, generated
+    openapi.yaml              the spec, source of truth
+    PARTNER_QUICKSTART.md     the provider surface, from nothing to a wallet
+
+The reference covers the **single-wallet** API: one key, one wallet. Wallet
+providers who need to create and operate wallets for their own users want
+`/api/partner/v1` on the main API, which is what the quickstart covers — and
+which the reference now points at rather than leaving someone to discover the
+single-wallet model is all there is.
 
 `index.html` inlines its CSS, its JavaScript and the Slay mark as a data URI.
 The only two outbound links in it are the CIP-0103 spec on GitHub and

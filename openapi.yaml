@@ -30,6 +30,25 @@ info:
     and is discovered at runtime via `canton:announceProvider`. Use
     `@canton-network/dapp-sdk`; nothing in this document is needed for that.
 
+    ## A second, larger surface exists
+
+    Everything below is the **single-wallet** API: one key, one wallet, the
+    wallet the key belongs to.
+
+    If you are a wallet **provider** — operating wallets for your own users —
+    that is not the surface you want. `/api/partner/v1` on the main API creates
+    and operates wallets on behalf of your users, pages history with cursors
+    rather than stopping at 200 rows, and answers `GET /me` with what your key
+    can actually do. Start there:
+
+    | | |
+    |---|---|
+    | Quickstart | `docs/PARTNER_QUICKSTART.md` in `slay-money-api` |
+    | Base URL | `https://slay-money-api.slay-money-api.workers.dev/api/partner/v1` |
+
+    This document remains correct for what it covers, and is not being
+    extended: new capability goes to `/api/partner/v1`.
+
     ## Base URLs — there are two, and they are different Workers
 
     | | |
