@@ -18,7 +18,19 @@ import * as schema from "../db/schema";
 import type { Env } from "../env";
 import { HttpError } from "../wallet/service";
 
-export const CAPABILITIES = ["balance:read", "tx:read", "tx:write"] as const;
+export const CAPABILITIES = [
+  "balance:read",
+  "tx:read",
+  "tx:write",
+  /* Partner surface (/api/partner/v1). Additive: no key in existence carries
+   * one of these, so adding them to the allowlist changes nothing for any key
+   * that already works. Without them here, validateRestrictions would filter
+   * a partner capability out at creation and silently mint a key that cannot
+   * do the thing it was asked for. */
+  "partner:wallets:provision",
+  "partner:wallets:read",
+  "partner:wallets:write",
+] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
 export interface Restrictions {
@@ -114,7 +126,11 @@ export function validateRestrictions(
     );
   }
 
-  const canWrite = caps.includes("tx:write");
+  /* Anything that can move money needs caps and an approved account.
+   * `partner:wallets:write` sends from a wallet exactly as `tx:write` does —
+   * a different surface is not a different risk, and an uncapped
+   * money-moving key is an unbounded liability the moment it leaks. */
+  const canWrite = caps.includes("tx:write") || caps.includes("partner:wallets:write");
 
   if (canWrite && !tradingApproved) {
     throw new HttpError(

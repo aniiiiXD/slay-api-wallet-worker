@@ -205,6 +205,17 @@ export type Env = {
    * a secret rather than by shipping a deploy.
    */
   PARTNER_BILLING_ENABLED?: string;
+
+  /**
+   * "1" mounts /api/partner/v1. Off by default and checked before
+   * authentication, so a disabled surface costs one string comparison and
+   * never touches the database.
+   *
+   * A switch rather than a deploy: while the partner API is young, the answer
+   * to it misbehaving should be thirty seconds, not a rollback of everything
+   * else that shipped with it.
+   */
+  PARTNER_API_ENABLED?: string;
   // --- On-chain (Daml) wiring ---------------------------------------------
   // Package id of the uploaded slay-money DAR. Use `daml damlc inspect-dar`
   // to look up after `daml build` if you don't know it. Required when any

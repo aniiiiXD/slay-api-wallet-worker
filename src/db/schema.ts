@@ -2325,3 +2325,33 @@ export const partnerWallets = pgTable(
   })
 );
 export type PartnerWalletRow = typeof partnerWallets.$inferSelect;
+
+/**
+ * Daily spend per PAYING account, across every wallet it owns.
+ *
+ * Separate from `agent_spend` rather than a re-keying of it. That table counts
+ * what one KEY spent, which is a restriction the key's owner chose; this counts
+ * what an ACCOUNT spent, which is the ceiling an operator attached when they
+ * approved it. On a single-wallet account the two agree. On a partner they do
+ * not: caps are per key, wallets are unlimited, and only this one is bounded by
+ * the approval.
+ *
+ * Same shape and same reason as agent_spend: one row per account per UTC day,
+ * so the cap check can be a single conditional UPDATE and two concurrent
+ * transfers from two different wallets cannot both pass one limit.
+ */
+export const accountSpend = pgTable(
+  "account_spend",
+  {
+    billingUserId: text("billing_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** UTC date, "YYYY-MM-DD". Day boundaries are UTC, not local. */
+    day: text("day").notNull(),
+    spentCc: numeric("spent_cc", { precision: 30, scale: 10 }).notNull().default("0"),
+  },
+  (t) => ({
+    pk: uniqueIndex("account_spend_pk").on(t.billingUserId, t.day),
+  })
+);
+export type AccountSpendRow = typeof accountSpend.$inferSelect;

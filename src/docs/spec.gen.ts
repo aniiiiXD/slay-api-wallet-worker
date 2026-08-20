@@ -13,7 +13,7 @@ export const spec: unknown = {
     "title": "Slay Money API",
     "version": "1.0.0",
     "summary": "Programmatic access to a Slay wallet on the Canton Network.",
-    "description": "Two ways in, for two different jobs:\n\n**API keys (`/api/v1`)** — server-to-server. A key belongs to one wallet\nand carries mandatory restrictions: what it may do, how much it may move per\ntransaction, which recipients it may pay, which IPs may use it. There is no\nunrestricted key.\n\n**CIP-0103** — browser dApps. Not described here because it is not an HTTP\nAPI: a dApp talks to the Slay browser extension, which implements\n[CIP-0103](https://github.com/canton-foundation/cips/blob/main/cip-0103/cip-0103.md)\nand is discovered at runtime via `canton:announceProvider`. Use\n`@canton-network/dapp-sdk`; nothing in this document is needed for that.\n\n## Base URLs — there are two, and they are different Workers\n\n| | |\n|---|---|\n| This API | `https://slay-api-wallet-providers.slay-money-api.workers.dev` |\n| Everything else | `https://slay-money-api.slay-money-api.workers.dev` |\n\nOnly `/api/v1` lives here. Issuing a key (`POST /api/keys`), applying for\napproval, prices, and every other Slay route are on the main API and are **not** reachable on\nthis host — they answer 404 with a message saying so. The split is\ndeliberate: this Worker deploys from a reviewed tag on a slow cadence, so\nSlay shipping a feature cannot move your traffic.\n\n## Getting a key\n\nIssue one from **Dashboard → Build → API keys** (`POST /api/keys` on the\nmain API, authenticated with a signed-in session — not with a key, and not\non this host). Only a signed-in human can: a key cannot create another key,\nso a leaked one cannot quietly issue itself successors.\n\nThe screen is also where you freeze a key, rotate it, or revoke it. Rotation\ncreates the successor first and leaves the old key valid for an hour, so a\ndeployment does not need downtime. Freezing is the reversible one — there is\na **Freeze all** control for the moment you are not yet sure what leaked.\n\nAt creation you choose exactly what it may do. There is no unrestricted\nkey and no \"tighten it later\":\n\n| Capability | Grants |\n|---|---|\n| `balance:read` | `GET /api/v1/balance` |\n| `tx:read` | `GET /api/v1/transactions`, `GET /api/v1/transfers/{id}` |\n| `tx:write` | `POST /api/v1/transfers` — moving money |\n\n`tx:write` additionally **requires** both spend caps, `perTransactionCc`\nand `perDayCc`. A key requesting it without them is rejected at creation\nwith 422, not accepted and warned about. You may also pin it to specific\nrecipients and to specific source IPs.\n\nThe secret is shown **once**, at creation, and hashed on the way in. There\nis no endpoint that returns it later. Lost means rotate.\n\n## Two things a valid key still cannot do\n\nA key that authenticates correctly can still be refused, and the two\nreasons look nothing alike:\n\n**`403 trading_not_approved`** — the account is not cleared to move money\nprogrammatically. Reads keep working. This is checked per request rather\nthan baked into the key, so suspending an account stops every key it owns\nat once, with no propagation delay and no key hunting.\n\nGetting cleared is a two-step thing, and minting a key is only the first:\n\n1. **Apply** — `POST /api/trading/apply` on the main API (session, not a\n   key) with your use case and expected monthly volume. State becomes\n   `pending`.\n2. **An operator decides**, and an approval always carries two **account\n   ceilings**: a maximum per transaction and a maximum per UTC day.\n\nThose ceilings bound the account, not one key. A key's own\n`perTransactionCc`/`perDayCc` may be lower and never higher — asking for\nmore at creation silently stores the ceiling instead, and the response\ntells you what was actually saved. If an operator later **lowers** a\nceiling, keys already issued are clamped down to it immediately; a limit\nthat only applied to future keys would not be a limit.\n\n`GET /api/trading/status` (main API, session) returns the current state and\nthe ceilings. A rejected application can be resubmitted. A **suspended**\none cannot — re-applying is refused, because a form should not be able to\nerase an operator's decision.\n\n**`429 limit_exceeded`** — a spend cap, not a request rate. Despite the\nstatus, backing off does not help: `perTransactionCc` will never accept\nthat amount, and `perDayCc` clears at 00:00 UTC. The message names which\ncap was hit and what has already been spent.\n\n## Amounts are decimal strings\n\n`amountCc` goes over the wire as a **string** — `\"3.5\"`, not `3.5`. CC has\nsix decimal places and IEEE-754 does not represent them exactly. A client\nthat parses to a float, does arithmetic and formats back will eventually\nsend someone the wrong number. Read them, compare them and store them as\nstrings.\n\n## `clientTxId` is what makes a retry safe\n\nEvery transfer requires one, and it is the ONLY thing separating \"my request\ntimed out, try again\" from \"pay them twice\". Generate it once per intended\npayment and reuse the identical value on every retry of that payment. The\nserver matches on it and returns the original transfer instead of making a\nsecond one.\n\n**A timeout is not a failure.** It means the outcome is unknown. Never retry\nwith a fresh id — re-send the same id, or read\n`GET /api/v1/transfers/{clientTxId}` to find out what happened.\n",
+    "description": "Two ways in, for two different jobs:\n\n**API keys (`/api/v1`)** — server-to-server. A key belongs to one wallet\nand carries mandatory restrictions: what it may do, how much it may move per\ntransaction, which recipients it may pay, which IPs may use it. There is no\nunrestricted key.\n\n**CIP-0103** — browser dApps. Not described here because it is not an HTTP\nAPI: a dApp talks to the Slay browser extension, which implements\n[CIP-0103](https://github.com/canton-foundation/cips/blob/main/cip-0103/cip-0103.md)\nand is discovered at runtime via `canton:announceProvider`. Use\n`@canton-network/dapp-sdk`; nothing in this document is needed for that.\n\n## Which surface you want\n\nTwo, and picking wrong costs you a rewrite rather than a config change.\n\n**`/api/partner/v1` — you operate wallets for your own users.** You create\nthem, one per customer, and move money out of each. This is the surface\nto build on: it pages with cursors, it tells you what your key can do, and\ncreating a wallet is idempotent on your own customer id.\n\n**`/api/v1` — one key, one wallet.** The wallet the key belongs to, and no\nway to create another. Right for a single treasury or a payout account.\nCorrect and supported, but not being extended: new capability goes to the\npartner surface.\n\nIf you are unsure, you want the partner surface. It does everything the\nsingle-wallet one does.\n\n## Start here\n\n```bash\ncurl https://slay-money-api.slay-money-api.workers.dev/api/partner/v1/me \\\n  -H \"Authorization: Bearer sk_live_…\"\n```\n\nThat answers what your key can do, and whether the account is cleared to\nmove money — which is worth knowing before you write the transfer that\nwould have been refused. Issue a key from **Dashboard → Build → API keys**;\nthe secret is shown once and is never retrievable.\n\n## Base URLs — there are two, and they are different Workers\n\n| | |\n|---|---|\n| This API | `https://slay-api-wallet-providers.slay-money-api.workers.dev` |\n| Everything else | `https://slay-money-api.slay-money-api.workers.dev` |\n\nOnly `/api/v1` lives here. Issuing a key (`POST /api/keys`), applying for\napproval, prices, and every other Slay route are on the main API and are **not** reachable on\nthis host — they answer 404 with a message saying so. The split is\ndeliberate: this Worker deploys from a reviewed tag on a slow cadence, so\nSlay shipping a feature cannot move your traffic.\n\n## Getting a key\n\nIssue one from **Dashboard → Build → API keys** (`POST /api/keys` on the\nmain API, authenticated with a signed-in session — not with a key, and not\non this host). Only a signed-in human can: a key cannot create another key,\nso a leaked one cannot quietly issue itself successors.\n\nThe screen is also where you freeze a key, rotate it, or revoke it. Rotation\ncreates the successor first and leaves the old key valid for an hour, so a\ndeployment does not need downtime. Freezing is the reversible one — there is\na **Freeze all** control for the moment you are not yet sure what leaked.\n\nAt creation you choose exactly what it may do. There is no unrestricted\nkey and no \"tighten it later\":\n\n| Capability | Grants |\n|---|---|\n| `balance:read` | `GET /api/v1/balance` |\n| `tx:read` | `GET /api/v1/transactions`, `GET /api/v1/transfers/{id}` |\n| `tx:write` | `POST /api/v1/transfers` — moving money |\n\n`tx:write` additionally **requires** both spend caps, `perTransactionCc`\nand `perDayCc`. A key requesting it without them is rejected at creation\nwith 422, not accepted and warned about. You may also pin it to specific\nrecipients and to specific source IPs.\n\nThe secret is shown **once**, at creation, and hashed on the way in. There\nis no endpoint that returns it later. Lost means rotate.\n\n## Two things a valid key still cannot do\n\nA key that authenticates correctly can still be refused, and the two\nreasons look nothing alike:\n\n**`403 trading_not_approved`** — the account is not cleared to move money\nprogrammatically. Reads keep working. This is checked per request rather\nthan baked into the key, so suspending an account stops every key it owns\nat once, with no propagation delay and no key hunting.\n\nGetting cleared is a two-step thing, and minting a key is only the first:\n\n1. **Apply** — `POST /api/trading/apply` on the main API (session, not a\n   key) with your use case and expected monthly volume. State becomes\n   `pending`.\n2. **An operator decides**, and an approval always carries two **account\n   ceilings**: a maximum per transaction and a maximum per UTC day.\n\nThose ceilings bound the account, not one key. A key's own\n`perTransactionCc`/`perDayCc` may be lower and never higher — asking for\nmore at creation silently stores the ceiling instead, and the response\ntells you what was actually saved. If an operator later **lowers** a\nceiling, keys already issued are clamped down to it immediately; a limit\nthat only applied to future keys would not be a limit.\n\n`GET /api/trading/status` (main API, session) returns the current state and\nthe ceilings. A rejected application can be resubmitted. A **suspended**\none cannot — re-applying is refused, because a form should not be able to\nerase an operator's decision.\n\n**`429 limit_exceeded`** — a spend cap, not a request rate. Despite the\nstatus, backing off does not help: `perTransactionCc` will never accept\nthat amount, and `perDayCc` clears at 00:00 UTC. The message names which\ncap was hit and what has already been spent.\n\n## Billing, because it surprises people\n\nSends made by **every wallet you own** share **one** free-tier allowance\nand **one** daily account ceiling. Creating more wallets does not create\nmore allowance.\n\nThat is deliberate. An allowance per sub-account would mean a provider with\nten thousand wallets gets ten thousand free tiers, and a 250 CC/day\napproval would mean 250 × however many wallets you chose to create.\n\n`GET /api/partner/v1/me` reports `account.billsTo`, so you can always see\nwhich account a wallet's spending counts against.\n\n## Amounts are decimal strings\n\n`amountCc` goes over the wire as a **string** — `\"3.5\"`, not `3.5`. CC has\nsix decimal places and IEEE-754 does not represent them exactly. A client\nthat parses to a float, does arithmetic and formats back will eventually\nsend someone the wrong number. Read them, compare them and store them as\nstrings.\n\n## `clientTxId` is what makes a retry safe\n\nEvery transfer requires one, and it is the ONLY thing separating \"my request\ntimed out, try again\" from \"pay them twice\". Generate it once per intended\npayment and reuse the identical value on every retry of that payment. The\nserver matches on it and returns the original transfer instead of making a\nsecond one.\n\n**A timeout is not a failure.** It means the outcome is unknown. Never retry\nwith a fresh id — re-send the same id, or read\n`GET /api/v1/transfers/{clientTxId}` to find out what happened.\n",
     "contact": {
       "name": "Slay Money",
       "url": "https://slay.money"
@@ -35,6 +35,10 @@ export const spec: unknown = {
   ],
   "tags": [
     {
+      "name": "Partner",
+      "description": "Wallets you create and operate for your own users. Base URL is the main\nAPI — `https://slay-money-api.slay-money-api.workers.dev` — not the host\nserving the single-wallet routes below.\n"
+    },
+    {
       "name": "Wallet",
       "description": "Balances and history for the wallet a key belongs to."
     },
@@ -52,6 +56,654 @@ export const spec: unknown = {
     }
   ],
   "paths": {
+    "/api/partner/v1/me": {
+      "servers": [
+        {
+          "url": "https://slay-money-api.slay-money-api.workers.dev",
+          "description": "Main API — the partner surface"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Partner"
+        ],
+        "summary": "What this key can do",
+        "description": "Call this first.\n\nIt exists because the alternative is inferring your capabilities from a\n403 and your spend limits from a 429. `account.trading` in particular\nis worth reading before you write a transfer: a key with every\ncapability still cannot move money until the **account** is approved,\nand that check runs on every request rather than being stamped onto the\nkey.\n\n`account.billsTo` is the account your wallets' spending counts against.\nSee **Billing** below — it is the part that surprises people.\n",
+        "operationId": "partnerMe",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "key": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "prefix": {
+                          "type": "string",
+                          "description": "Safe to log and to quote in a ticket. Not the secret.",
+                          "example": "sk_live_a1b2"
+                        },
+                        "capabilities": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "partner:wallets:provision",
+                              "partner:wallets:read",
+                              "partner:wallets:write"
+                            ]
+                          }
+                        },
+                        "expiresAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "lastUsedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        }
+                      }
+                    },
+                    "limits": {
+                      "type": "object",
+                      "description": "This KEY's own caps, as decimal strings. Null means no cap of its own.",
+                      "properties": {
+                        "perTransactionCc": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "example": "25"
+                        },
+                        "perDayCc": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "example": "250"
+                        },
+                        "perMonthCc": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "allowedRecipients": {
+                          "type": "integer",
+                          "description": "How many recipients this key is pinned to. 0 means any."
+                        },
+                        "allowedIps": {
+                          "type": "integer",
+                          "description": "How many source addresses it is pinned to. 0 means any."
+                        }
+                      }
+                    },
+                    "account": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "trading": {
+                          "type": "string",
+                          "enum": [
+                            "none",
+                            "pending",
+                            "approved",
+                            "rejected",
+                            "suspended"
+                          ],
+                          "description": "Whether the ACCOUNT may move money programmatically.\nAnything but `approved` and every transfer returns\n403, however good the key is.\n"
+                        },
+                        "ceilings": {
+                          "type": "object",
+                          "description": "Set by an operator at approval, and applied to your\nwallets **in aggregate**. Distinct from the key caps\nabove: a second key does not buy more of these.\n",
+                          "properties": {
+                            "perTransactionCc": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "perDayCc": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          }
+                        },
+                        "billsTo": {
+                          "type": "string",
+                          "description": "The account this key's wallets bill to."
+                        }
+                      }
+                    },
+                    "surface": {
+                      "type": "string",
+                      "example": "partner/v1"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidKey"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/Frozen"
+          }
+        }
+      }
+    },
+    "/api/partner/v1/wallets": {
+      "servers": [
+        {
+          "url": "https://slay-money-api.slay-money-api.workers.dev",
+          "description": "Main API — the partner surface"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Partner"
+        ],
+        "summary": "Create a wallet for one of your users",
+        "description": "Requires `partner:wallets:provision`.\n\n**Idempotent on `externalRef`**, which is your own id for that user.\nRetry after a timeout, a redeploy or a queue redelivery and you get the\nsame wallet back — `200` rather than `201`, so you can tell which\nhappened without it changing what you receive. The alternative is two\nwallets holding two balances for one person, which no later\nreconciliation fixes.\n\nThe wallet comes back `provisioning`. Allocating a Canton party is a\nvalidator round-trip and does not belong inside your signup loop, so it\nfinishes in the background, usually within a few minutes. Balances read\nimmediately; transfers return `409 wallet_provisioning` until it is\n`ready`.\n",
+        "operationId": "createPartnerWallet",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "externalRef"
+                ],
+                "properties": {
+                  "externalRef": {
+                    "type": "string",
+                    "maxLength": 128,
+                    "description": "Your id for this user. The idempotency key.",
+                    "example": "cust-42"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Free text for your own dashboards. Never interpreted here.",
+                    "example": "Maya"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "This reference already had a wallet. Nothing was created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerWallet"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerWallet"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidKey"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "description": "`externalRef` missing or too long. The message says why it is\nrequired rather than only that it is.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Partner"
+        ],
+        "summary": "List your wallets",
+        "description": "Requires `partner:wallets:read`. Newest first, cursor paged.\n\nCursors rather than offsets because rows are being written while you\npage, and offset paging silently skips or repeats under insertion.\n`nextCursor` is `null` when you have reached the end — it is not\npresent-but-stale, so a client cannot loop over nothing.\n",
+        "operationId": "listPartnerWallets",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "The `nextCursor` from the previous page. Omit for the first."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "wallets",
+                    "nextCursor"
+                  ],
+                  "properties": {
+                    "wallets": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PartnerWallet"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "Pass back as `cursor`. Null means no more pages."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidKey"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/api/partner/v1/wallets/{ref}": {
+      "servers": [
+        {
+          "url": "https://slay-money-api.slay-money-api.workers.dev",
+          "description": "Main API — the partner surface"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Partner"
+        ],
+        "summary": "One wallet, and whether it is ready",
+        "description": "Requires `partner:wallets:read`. Poll this after creation until\n`status` is `ready`.\n\nA reference you do not own is **404, not 403** — whether somebody\nelse's reference exists is not answerable here, and a 403 would answer\nit.\n",
+        "operationId": "getPartnerWallet",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Your own id for this user."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PartnerWallet"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidKey"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/WalletNotFound"
+          }
+        }
+      }
+    },
+    "/api/partner/v1/wallets/{ref}/balance": {
+      "servers": [
+        {
+          "url": "https://slay-money-api.slay-money-api.workers.dev",
+          "description": "Main API — the partner surface"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Partner"
+        ],
+        "summary": "Balance of one of your wallets",
+        "description": "Requires `partner:wallets:read`. Works while a wallet is still\n`provisioning`.\n\nSpend against `availableCc`, never `balanceCc`: locked funds are real\nmoney the holder owns and cannot move, so treating the total as\nspendable produces transfers the server refuses.\n",
+        "operationId": "getPartnerWalletBalance",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "provisioning",
+                        "ready",
+                        "frozen"
+                      ]
+                    },
+                    "balanceCc": {
+                      "type": "string",
+                      "example": "87.105300"
+                    },
+                    "lockedCc": {
+                      "type": "string",
+                      "example": "0.000000"
+                    },
+                    "availableCc": {
+                      "type": "string",
+                      "example": "87.105300"
+                    },
+                    "cantonAddress": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidKey"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/WalletNotFound"
+          }
+        }
+      }
+    },
+    "/api/partner/v1/wallets/{ref}/transactions": {
+      "servers": [
+        {
+          "url": "https://slay-money-api.slay-money-api.workers.dev",
+          "description": "Main API — the partner surface"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Partner"
+        ],
+        "summary": "History for one wallet",
+        "description": "Requires `partner:wallets:read`. Newest first, cursor paged — page all\nthe way back, which the single-wallet surface cannot do.\n\n`clientTxId` is populated for transfers this API created, so you can\nreconcile your own sends without keeping a separate mapping.\n",
+        "operationId": "listPartnerWalletTransactions",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "nextCursor"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Transaction"
+                      }
+                    },
+                    "nextCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidKey"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/WalletNotFound"
+          }
+        }
+      }
+    },
+    "/api/partner/v1/wallets/{ref}/transfers": {
+      "servers": [
+        {
+          "url": "https://slay-money-api.slay-money-api.workers.dev",
+          "description": "Main API — the partner surface"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Partner"
+        ],
+        "summary": "Send CC from one of your wallets",
+        "description": "Requires `partner:wallets:write` **and** `tx:write`, both spend caps on\nthe key, and an approved account.\n\n**This moves money.** `clientTxId` is required and is the only thing\nseparating \"my request timed out, try again\" from \"pay them twice\".\nGenerate it once per intended payment and reuse the identical value on\nevery retry of that payment. A timeout is not a failure — it means the\noutcome is unknown; re-send the same id rather than a fresh one.\n\nThree limits apply and they fail differently, so the `code` tells you\nwhich bit: the key's own caps (`limit_exceeded`), the account's\nceilings across **all** your wallets (`account_limit_exceeded`), and\nthe account's approval state (`trading_not_approved`).\n",
+        "operationId": "createPartnerTransfer",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "clientTxId",
+                  "to",
+                  "amountCc"
+                ],
+                "properties": {
+                  "clientTxId": {
+                    "type": "string",
+                    "description": "Your idempotency key. Reuse it verbatim when retrying.",
+                    "example": "b3f1c8e2-4d9a-4c77-8f0e-2a51d9c7e401"
+                  },
+                  "to": {
+                    "type": "string",
+                    "description": "A Slay handle, or a Canton party id (it contains `::`).",
+                    "example": "karan"
+                  },
+                  "amountCc": {
+                    "type": "string",
+                    "description": "Positive decimal STRING. Not a number.",
+                    "example": "3.5"
+                  },
+                  "memo": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Settled.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ref": {
+                      "type": "string"
+                    },
+                    "clientTxId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "settled"
+                      ]
+                    },
+                    "amountCc": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing `clientTxId` or `to`, or an `amountCc` that is not a positive decimal string.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidKey"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/WalletNotFound"
+          },
+          "409": {
+            "description": "`wallet_provisioning` — no Canton party yet; poll the wallet until\nit is `ready`. Or `frozen` — the wallet or the key is switched off.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`limit_exceeded` — this key's cap. `account_limit_exceeded` — the\naccount's ceiling across every wallet you own, where a different\nkey will not help. Both are spend caps, not request rates: per\ntransaction never passes for that amount, per day clears at 00:00 UTC.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/balance": {
       "get": {
         "tags": [
@@ -549,6 +1201,16 @@ export const spec: unknown = {
           }
         }
       },
+      "WalletNotFound": {
+        "description": "`wallet_not_found` — no wallet with that reference on this account.\n\nAlso what you get for a reference belonging to somebody else: 404 and\nnot 403, because a 403 would confirm it exists.\n",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
       "InvalidKey": {
         "description": "Missing or unrecognised key.",
         "content": {
@@ -606,8 +1268,15 @@ export const spec: unknown = {
               "token_not_enabled",
               "trading_not_approved",
               "not_found",
+              "wallet_not_found",
+              "wallet_provisioning",
               "frozen",
               "limit_exceeded",
+              "account_limit_exceeded",
+              "key_revoked",
+              "key_expired",
+              "key_rotated",
+              "partner_api_disabled",
               "forbidden",
               "conflict",
               "gone",
@@ -616,6 +1285,48 @@ export const spec: unknown = {
               "unavailable",
               "internal"
             ]
+          }
+        }
+      },
+      "PartnerWallet": {
+        "type": "object",
+        "required": [
+          "ref",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string",
+            "description": "Your own id for this user — what you passed as `externalRef`.",
+            "example": "cust-42"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "provisioning",
+              "ready",
+              "frozen"
+            ],
+            "description": "`provisioning` until a Canton party is allocated, which happens in\nthe background. Balances read meanwhile; transfers do not.\n"
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cantonAddress": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null while provisioning. The wallet's party on the ledger.",
+            "example": "slay-money::12206cab144ff69861e34be8671ece597d978fd70c2e1d6fb2a5da8f17336796ef32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

@@ -11,8 +11,8 @@
     {
       "path": "src/agents/service.ts",
       "upstream": "src/agents/service.ts",
-      "localSha": "bf7779b32eef820df8bf549ee649b22914c2eeb298427061ed5bffaf651b2e78",
-      "upstreamSha": "bf7779b32eef820df8bf549ee649b22914c2eeb298427061ed5bffaf651b2e78"
+      "localSha": "f466fe9984931f115ce5f6123462e2f2f2e9cc8ead4453d8537705acfc7c804e",
+      "upstreamSha": "f466fe9984931f115ce5f6123462e2f2f2e9cc8ead4453d8537705acfc7c804e"
     },
     {
       "path": "src/agents/v1.ts",
@@ -137,14 +137,14 @@
     {
       "path": "src/db/schema.ts",
       "upstream": "src/db/schema.ts",
-      "localSha": "5a7f82b2ac43e119048e032a650598bb5d60bfde7388cc4e99b7e3c19ff5e923",
-      "upstreamSha": "5a7f82b2ac43e119048e032a650598bb5d60bfde7388cc4e99b7e3c19ff5e923"
+      "localSha": "b01cea947f89b2ea876fb31111d3febae7219f32c8abeed916ea41ecc48206f8",
+      "upstreamSha": "b01cea947f89b2ea876fb31111d3febae7219f32c8abeed916ea41ecc48206f8"
     },
     {
       "path": "src/docs/render.ts",
       "upstream": "src/docs/render.ts",
-      "localSha": "d5481c91f7278ba816cdeaefc59bae98c3c2719013bbbe56a02482116dee7faf",
-      "upstreamSha": "d5481c91f7278ba816cdeaefc59bae98c3c2719013bbbe56a02482116dee7faf"
+      "localSha": "7c5a19a63782a452d069fa777fe2acdc2f64eae2d3a02b6fecb55e4be49078b0",
+      "upstreamSha": "7c5a19a63782a452d069fa777fe2acdc2f64eae2d3a02b6fecb55e4be49078b0"
     },
     {
       "path": "src/docs/routes.ts",
@@ -155,8 +155,8 @@
     {
       "path": "src/env.ts",
       "upstream": "src/env.ts",
-      "localSha": "3d4bf4bd6fcf3515a70198842a819ae94f1711a31fc6926b1446b403e280d452",
-      "upstreamSha": "3d4bf4bd6fcf3515a70198842a819ae94f1711a31fc6926b1446b403e280d452"
+      "localSha": "0fea05da08764931b108424b6e0468a2fef1a94b804e44727d73f6d597aa4087",
+      "upstreamSha": "cc6ff7f5a05aca9cd390e69bd03108636eaad2ae96b2d96a9e4faf292c2a3b7c"
     },
     {
       "path": "src/fees/network-fees.ts",
@@ -216,7 +216,7 @@
       "path": "src/kms/interactive.ts",
       "upstream": "src/kms/interactive.ts",
       "localSha": "fc30c5cd174fc678faec37f5e9b1cbcd156db71efa0d0a7317d470ee6d7ca551",
-      "upstreamSha": "fc30c5cd174fc678faec37f5e9b1cbcd156db71efa0d0a7317d470ee6d7ca551"
+      "upstreamSha": "91d0d7679394dafab17a20081961a4ad2fd2c2a6e0eb79e4e565c87dc58db224"
     },
     {
       "path": "src/kms/keys.ts",
@@ -294,7 +294,7 @@
       "path": "src/slay-rewards/config.ts",
       "upstream": "src/slay-rewards/config.ts",
       "localSha": "ec321636403653e2f4317691251b329f732cde9a52465a621b0e0d155396470c",
-      "upstreamSha": "ec321636403653e2f4317691251b329f732cde9a52465a621b0e0d155396470c"
+      "upstreamSha": "079533ba3672cbb975f2921463eceac0649851993907d01cf000bebd9e41b816"
     },
     {
       "path": "src/splice/amulet.ts",
@@ -318,7 +318,7 @@
       "path": "src/splice/marker.ts",
       "upstream": "src/splice/marker.ts",
       "localSha": "c6a2ea24fdfd2f4b41ac95f74238f4a15aef7adca960326f2df0def3d7ead3b5",
-      "upstreamSha": "c6a2ea24fdfd2f4b41ac95f74238f4a15aef7adca960326f2df0def3d7ead3b5"
+      "upstreamSha": "5b4af788f8a2d03c1c76fdae110f93479999d96719633c9b3f0e213a8e8cdc09"
     },
     {
       "path": "src/splice/preapproval-setup.ts",
@@ -381,6 +381,6 @@
       "upstreamSha": "ac39382c0474e3208212bfa26fa685ba33d781f7f211dd751701087c4514c434"
     }
   ],
-  "acceptedAt": "2026-08-20T12:21:33.674Z",
+  "acceptedAt": "2026-08-20T12:50:41.382Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }

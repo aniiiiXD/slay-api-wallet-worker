@@ -64,7 +64,11 @@ interface Doc {
   };
   servers?: Array<{ url?: string; description?: string }>;
   tags?: Array<{ name: string; description?: string }>;
-  paths?: Record<string, Record<string, Operation>>;
+  /* A path item is operations by method, plus an optional `servers` override.
+   * The override matters: a spec can describe routes that live on more than
+   * one host, and rendering them all against the top-level server is how a
+   * reference confidently sends someone to a 404. */
+  paths?: Record<string, Record<string, Operation> & { servers?: Array<{ url?: string }> }>;
   components?: {
     schemas?: Record<string, Schema>;
     responses?: Record<string, Response>;
@@ -428,11 +432,13 @@ export function renderDocs(input: unknown): string {
     for (const method of METHODS) {
       const op = item[method];
       if (!op) continue;
+      /* This path's own host if it declares one, otherwise the document's. */
+      const opServer = item.servers?.[0]?.url ?? server;
       const tag = op.tags?.[0] ?? "Other";
       if (!groups.has(tag)) groups.set(tag, { html: [], entries: [] });
       const g = groups.get(tag)!;
       const before = g.entries.length;
-      g.html.push(renderOperation(path, method, op, doc, server, g.entries));
+      g.html.push(renderOperation(path, method, op, doc, opServer, g.entries));
       void before;
     }
   }

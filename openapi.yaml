@@ -30,6 +30,35 @@ info:
     and is discovered at runtime via `canton:announceProvider`. Use
     `@canton-network/dapp-sdk`; nothing in this document is needed for that.
 
+    ## Which surface you want
+
+    Two, and picking wrong costs you a rewrite rather than a config change.
+
+    **`/api/partner/v1` — you operate wallets for your own users.** You create
+    them, one per customer, and move money out of each. This is the surface
+    to build on: it pages with cursors, it tells you what your key can do, and
+    creating a wallet is idempotent on your own customer id.
+
+    **`/api/v1` — one key, one wallet.** The wallet the key belongs to, and no
+    way to create another. Right for a single treasury or a payout account.
+    Correct and supported, but not being extended: new capability goes to the
+    partner surface.
+
+    If you are unsure, you want the partner surface. It does everything the
+    single-wallet one does.
+
+    ## Start here
+
+    ```bash
+    curl https://slay-money-api.slay-money-api.workers.dev/api/partner/v1/me \
+      -H "Authorization: Bearer sk_live_…"
+    ```
+
+    That answers what your key can do, and whether the account is cleared to
+    move money — which is worth knowing before you write the transfer that
+    would have been refused. Issue a key from **Dashboard → Build → API keys**;
+    the secret is shown once and is never retrievable.
+
     ## Base URLs — there are two, and they are different Workers
 
     | | |
@@ -107,6 +136,19 @@ info:
     that amount, and `perDayCc` clears at 00:00 UTC. The message names which
     cap was hit and what has already been spent.
 
+    ## Billing, because it surprises people
+
+    Sends made by **every wallet you own** share **one** free-tier allowance
+    and **one** daily account ceiling. Creating more wallets does not create
+    more allowance.
+
+    That is deliberate. An allowance per sub-account would mean a provider with
+    ten thousand wallets gets ten thousand free tiers, and a 250 CC/day
+    approval would mean 250 × however many wallets you chose to create.
+
+    `GET /api/partner/v1/me` reports `account.billsTo`, so you can always see
+    which account a wallet's spending counts against.
+
     ## Amounts are decimal strings
 
     `amountCc` goes over the wire as a **string** — `"3.5"`, not `3.5`. CC has
@@ -145,6 +187,11 @@ security:
   - ApiKey: []
 
 tags:
+  - name: Partner
+    description: |
+      Wallets you create and operate for your own users. Base URL is the main
+      API — `https://slay-money-api.slay-money-api.workers.dev` — not the host
+      serving the single-wallet routes below.
   - name: Wallet
     description: Balances and history for the wallet a key belongs to.
   - name: Transfers
@@ -155,6 +202,385 @@ tags:
     description: No authentication. Use these for liveness and readiness checks.
 
 paths:
+  # ───────────────────────────────────────────────────────────────────────────
+  #  Partner surface. These live on the MAIN API, not on the host that serves
+  #  the single-wallet routes below, so each carries its own `servers` entry.
+  #  Documenting a path against the wrong host is how a reference sends someone
+  #  to a 404 while looking entirely correct.
+  # ───────────────────────────────────────────────────────────────────────────
+
+  /api/partner/v1/me:
+    servers: &partnerServer
+      - url: https://slay-money-api.slay-money-api.workers.dev
+        description: Main API — the partner surface
+    get:
+      tags: [Partner]
+      summary: What this key can do
+      description: |
+        Call this first.
+
+        It exists because the alternative is inferring your capabilities from a
+        403 and your spend limits from a 429. `account.trading` in particular
+        is worth reading before you write a transfer: a key with every
+        capability still cannot move money until the **account** is approved,
+        and that check runs on every request rather than being stamped onto the
+        key.
+
+        `account.billsTo` is the account your wallets' spending counts against.
+        See **Billing** below — it is the part that surprises people.
+      operationId: partnerMe
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  key:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      name: { type: string }
+                      prefix:
+                        type: string
+                        description: Safe to log and to quote in a ticket. Not the secret.
+                        example: "sk_live_a1b2"
+                      capabilities:
+                        type: array
+                        items:
+                          type: string
+                          enum:
+                            [partner:wallets:provision, partner:wallets:read, partner:wallets:write]
+                      expiresAt: { type: [string, "null"], format: date-time }
+                      lastUsedAt: { type: [string, "null"], format: date-time }
+                  limits:
+                    type: object
+                    description: This KEY's own caps, as decimal strings. Null means no cap of its own.
+                    properties:
+                      perTransactionCc: { type: [string, "null"], example: "25" }
+                      perDayCc: { type: [string, "null"], example: "250" }
+                      perMonthCc: { type: [string, "null"] }
+                      allowedRecipients:
+                        type: integer
+                        description: How many recipients this key is pinned to. 0 means any.
+                      allowedIps:
+                        type: integer
+                        description: How many source addresses it is pinned to. 0 means any.
+                  account:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      trading:
+                        type: string
+                        enum: [none, pending, approved, rejected, suspended]
+                        description: |
+                          Whether the ACCOUNT may move money programmatically.
+                          Anything but `approved` and every transfer returns
+                          403, however good the key is.
+                      ceilings:
+                        type: object
+                        description: |
+                          Set by an operator at approval, and applied to your
+                          wallets **in aggregate**. Distinct from the key caps
+                          above: a second key does not buy more of these.
+                        properties:
+                          perTransactionCc: { type: [string, "null"] }
+                          perDayCc: { type: [string, "null"] }
+                      billsTo:
+                        type: string
+                        description: The account this key's wallets bill to.
+                  surface: { type: string, example: "partner/v1" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Frozen" }
+
+  /api/partner/v1/wallets:
+    servers: *partnerServer
+    post:
+      tags: [Partner]
+      summary: Create a wallet for one of your users
+      description: |
+        Requires `partner:wallets:provision`.
+
+        **Idempotent on `externalRef`**, which is your own id for that user.
+        Retry after a timeout, a redeploy or a queue redelivery and you get the
+        same wallet back — `200` rather than `201`, so you can tell which
+        happened without it changing what you receive. The alternative is two
+        wallets holding two balances for one person, which no later
+        reconciliation fixes.
+
+        The wallet comes back `provisioning`. Allocating a Canton party is a
+        validator round-trip and does not belong inside your signup loop, so it
+        finishes in the background, usually within a few minutes. Balances read
+        immediately; transfers return `409 wallet_provisioning` until it is
+        `ready`.
+      operationId: createPartnerWallet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalRef]
+              properties:
+                externalRef:
+                  type: string
+                  maxLength: 128
+                  description: Your id for this user. The idempotency key.
+                  example: "cust-42"
+                label:
+                  type: string
+                  description: Free text for your own dashboards. Never interpreted here.
+                  example: "Maya"
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerWallet" }
+        "200":
+          description: This reference already had a wallet. Nothing was created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerWallet" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422":
+          description: |
+            `externalRef` missing or too long. The message says why it is
+            required rather than only that it is.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    get:
+      tags: [Partner]
+      summary: List your wallets
+      description: |
+        Requires `partner:wallets:read`. Newest first, cursor paged.
+
+        Cursors rather than offsets because rows are being written while you
+        page, and offset paging silently skips or repeats under insertion.
+        `nextCursor` is `null` when you have reached the end — it is not
+        present-but-stale, so a client cannot loop over nothing.
+      operationId: listPartnerWallets
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+          description: The `nextCursor` from the previous page. Omit for the first.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [wallets, nextCursor]
+                properties:
+                  wallets:
+                    type: array
+                    items: { $ref: "#/components/schemas/PartnerWallet" }
+                  nextCursor:
+                    type: [string, "null"]
+                    description: Pass back as `cursor`. Null means no more pages.
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /api/partner/v1/wallets/{ref}:
+    servers: *partnerServer
+    get:
+      tags: [Partner]
+      summary: One wallet, and whether it is ready
+      description: |
+        Requires `partner:wallets:read`. Poll this after creation until
+        `status` is `ready`.
+
+        A reference you do not own is **404, not 403** — whether somebody
+        else's reference exists is not answerable here, and a 403 would answer
+        it.
+      operationId: getPartnerWallet
+      parameters:
+        - name: ref
+          in: path
+          required: true
+          schema: { type: string }
+          description: Your own id for this user.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PartnerWallet" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/WalletNotFound" }
+
+  /api/partner/v1/wallets/{ref}/balance:
+    servers: *partnerServer
+    get:
+      tags: [Partner]
+      summary: Balance of one of your wallets
+      description: |
+        Requires `partner:wallets:read`. Works while a wallet is still
+        `provisioning`.
+
+        Spend against `availableCc`, never `balanceCc`: locked funds are real
+        money the holder owns and cannot move, so treating the total as
+        spendable produces transfers the server refuses.
+      operationId: getPartnerWalletBalance
+      parameters:
+        - name: ref
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ref: { type: string }
+                  status: { type: string, enum: [provisioning, ready, frozen] }
+                  balanceCc: { type: string, example: "87.105300" }
+                  lockedCc: { type: string, example: "0.000000" }
+                  availableCc: { type: string, example: "87.105300" }
+                  cantonAddress: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/WalletNotFound" }
+
+  /api/partner/v1/wallets/{ref}/transactions:
+    servers: *partnerServer
+    get:
+      tags: [Partner]
+      summary: History for one wallet
+      description: |
+        Requires `partner:wallets:read`. Newest first, cursor paged — page all
+        the way back, which the single-wallet surface cannot do.
+
+        `clientTxId` is populated for transfers this API created, so you can
+        reconcile your own sends without keeping a separate mapping.
+      operationId: listPartnerWalletTransactions
+      parameters:
+        - name: ref
+          in: path
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Transaction" }
+                  nextCursor: { type: [string, "null"] }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/WalletNotFound" }
+
+  /api/partner/v1/wallets/{ref}/transfers:
+    servers: *partnerServer
+    post:
+      tags: [Partner]
+      summary: Send CC from one of your wallets
+      description: |
+        Requires `partner:wallets:write` **and** `tx:write`, both spend caps on
+        the key, and an approved account.
+
+        **This moves money.** `clientTxId` is required and is the only thing
+        separating "my request timed out, try again" from "pay them twice".
+        Generate it once per intended payment and reuse the identical value on
+        every retry of that payment. A timeout is not a failure — it means the
+        outcome is unknown; re-send the same id rather than a fresh one.
+
+        Three limits apply and they fail differently, so the `code` tells you
+        which bit: the key's own caps (`limit_exceeded`), the account's
+        ceilings across **all** your wallets (`account_limit_exceeded`), and
+        the account's approval state (`trading_not_approved`).
+      operationId: createPartnerTransfer
+      parameters:
+        - name: ref
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientTxId, to, amountCc]
+              properties:
+                clientTxId:
+                  type: string
+                  description: Your idempotency key. Reuse it verbatim when retrying.
+                  example: "b3f1c8e2-4d9a-4c77-8f0e-2a51d9c7e401"
+                to:
+                  type: string
+                  description: A Slay handle, or a Canton party id (it contains `::`).
+                  example: "karan"
+                amountCc:
+                  type: string
+                  description: Positive decimal STRING. Not a number.
+                  example: "3.5"
+                memo:
+                  type: string
+      responses:
+        "201":
+          description: Settled.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ref: { type: string }
+                  clientTxId: { type: string }
+                  status: { type: string, enum: [settled] }
+                  amountCc: { type: string }
+                  id: { type: string }
+                  createdAt: { type: string, format: date-time }
+        "400":
+          description: Missing `clientTxId` or `to`, or an `amountCc` that is not a positive decimal string.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/InvalidKey" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/WalletNotFound" }
+        "409":
+          description: |
+            `wallet_provisioning` — no Canton party yet; poll the wallet until
+            it is `ready`. Or `frozen` — the wallet or the key is switched off.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: |
+            `limit_exceeded` — this key's cap. `account_limit_exceeded` — the
+            account's ceiling across every wallet you own, where a different
+            key will not help. Both are spend caps, not request rates: per
+            transaction never passes for that amount, per day clears at 00:00 UTC.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /api/v1/balance:
     get:
       tags: [Wallet]
@@ -547,6 +973,15 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
+    WalletNotFound:
+      description: |
+        `wallet_not_found` — no wallet with that reference on this account.
+
+        Also what you get for a reference belonging to somebody else: 404 and
+        not 403, because a 403 would confirm it exists.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     InvalidKey:
       description: Missing or unrecognised key.
       content:
@@ -594,8 +1029,15 @@ components:
               token_not_enabled,
               trading_not_approved,
               not_found,
+              wallet_not_found,
+              wallet_provisioning,
               frozen,
               limit_exceeded,
+              account_limit_exceeded,
+              key_revoked,
+              key_expired,
+              key_rotated,
+              partner_api_disabled,
               forbidden,
               conflict,
               gone,
@@ -604,6 +1046,27 @@ components:
               unavailable,
               internal,
             ]
+
+    PartnerWallet:
+      type: object
+      required: [ref, status, createdAt]
+      properties:
+        ref:
+          type: string
+          description: Your own id for this user — what you passed as `externalRef`.
+          example: "cust-42"
+        status:
+          type: string
+          enum: [provisioning, ready, frozen]
+          description: |
+            `provisioning` until a Canton party is allocated, which happens in
+            the background. Balances read meanwhile; transfers do not.
+        label: { type: [string, "null"] }
+        cantonAddress:
+          type: [string, "null"]
+          description: Null while provisioning. The wallet's party on the ledger.
+          example: "slay-money::12206cab144ff69861e34be8671ece597d978fd70c2e1d6fb2a5da8f17336796ef32"
+        createdAt: { type: string, format: date-time }
 
     Transaction:
       type: object
