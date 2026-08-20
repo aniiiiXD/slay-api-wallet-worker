@@ -1131,16 +1131,18 @@ data = res.json()</code></pre></div>
         <span class="ptype">string</span>
         
       </div>
-      <div class="pbody"><p>Your own take on this transfer, computed from <code>GET /api/v1/config</code>. <code>&quot;0.000000&quot;</code> when you have no fee configured, or when it has no destination party.</p>
-<p><strong>Reported, not yet moved</strong> — see <code>partnerFeeCollected</code>.</p><div class="eg">Example: <code>&quot;0.075000&quot;</code></div></div>
+      <div class="pbody"><p>What you were actually PAID on this transfer — straight to the Canton party you configured, in this same transaction.</p>
+<p>Taken from the amount, exactly like Slay's own fee: the sender is debited what they asked to send, and the recipient receives what is left after both fees. A fee added on top would charge the sender more than the number they passed in, which no API should do quietly.</p>
+<p><code>&quot;0.000000&quot;</code> when you have no fee configured, when it has no destination party, or when the fee outputs were stripped.</p><div class="eg">Example: <code>&quot;0.075000&quot;</code></div></div>
     </div><div class="prop">
       <div class="phead">
         <code class="pname">partnerFeeCollected</code>
         <span class="ptype">boolean</span>
         
       </div>
-      <div class="pbody"><p>Always <code>false</code> today, and stated in the response rather than left for you to discover in reconciliation.</p>
-<p>The figure above is computed and returned so you can bill against it, but no ledger movement has happened: collecting it means adding an output to the Slay send path, and that path has an open defect where a dropped fee output leaves the amount already committed. Building a second fee mechanism on top of that would reproduce the bug once per partner. Treat <code>partnerFeeCc</code> as an invoice line, not as money received.</p><div class="eg">Example: <code>false</code></div></div>
+      <div class="pbody"><p>Whether it actually moved. Normally <code>true</code>.</p>
+<p>Your fee is an extra output on the same transfer — not accrued, not settled later, and never a transfer of its own. A transfer burns roughly 5.8 KB of synchronizer traffic (~3.5 CC) whatever it carries, so paying a 0.25 CC fee separately would cost fourteen times the fee. As an extra output it costs the marginal bytes.</p>
+<p><code>false</code> means the retry fallback stripped the fee outputs. Then the <strong>whole</strong> amount went to the recipient, neither Slay nor you were paid, and <code>partnerFeeCc</code> is <code>&quot;0.000000&quot;</code> to match. Bill against these two fields, never against your own calculation.</p><div class="eg">Example: <code>true</code></div></div>
     </div><div class="prop">
       <div class="phead">
         <code class="pname">id</code>
@@ -1160,7 +1162,7 @@ data = res.json()</code></pre></div>
   <span class="ts">&quot;status&quot;</span>: <span class="tv">&quot;settled&quot;</span>,
   <span class="ts">&quot;amountCc&quot;</span>: <span class="tv">&quot;1.894700&quot;</span>,
   <span class="ts">&quot;partnerFeeCc&quot;</span>: <span class="tv">&quot;0.075000&quot;</span>,
-  <span class="ts">&quot;partnerFeeCollected&quot;</span>: <span class="tk">false</span>
+  <span class="ts">&quot;partnerFeeCollected&quot;</span>: <span class="tk">true</span>
 }</code></pre>
     </section>
     </div>
