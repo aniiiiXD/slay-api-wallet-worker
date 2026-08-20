@@ -1084,6 +1084,13 @@ export type TransferAmuletResult = {
  * `provider`). The Worker has actAs on operator (ledger-api-user) and on
  * every onboarded user party (granted via grantUserActAs at signup).
  */
+/** A party that receives part of a transfer as a fee: Slay's own, or a wallet
+ *  provider's take on top of it. Paid as an extra output on the SAME transfer
+ *  rather than a separate one — a transfer burns ~5.8 KB of synchronizer
+ *  traffic (~3.5 CC) no matter how small the fee is, so paying a 0.075 CC
+ *  provider fee in its own transfer would cost forty times what it moves. */
+export type FeeOutput = { receiver: string; amountCc: number };
+
 export async function transferAmulet(
   env: Env,
   senderParty: string,
@@ -1091,7 +1098,7 @@ export async function transferAmulet(
   amountCc: number,
   memo: string,
   featuredOverride?: FeaturedBundle | null,
-  feeOutput?: { receiver: string; amountCc: number } | null
+  feeOutput?: FeeOutput | FeeOutput[] | null
 ): Promise<TransferAmuletResult> {
   // Self-custody EXTERNAL sender: the operator can't actAs it, so the
   // AmuletRules_Transfer multi-actAs path here is unusable. Route through
@@ -1159,7 +1166,16 @@ export async function transferAmulet(
   const rounds = await getOpenAndIssuingRoundsDisclosed(env);
 
   let featured = featuredOverride !== undefined ? featuredOverride : walletFeatured(env);
-  let feeOut = feeOutput ?? null;
+  /* One fee output or several — Slay's own, and a wallet provider's take on
+   * top of it. Normalised to an array here so the rest of this function has
+   * one shape to reason about, and so the strip fallback below cannot drop
+   * one kind of fee while keeping another. */
+  let feeOuts: FeeOutput[] = feeOutput
+    ? Array.isArray(feeOutput)
+      ? feeOutput.filter((f) => f && f.amountCc > 0)
+      : [feeOutput]
+    : [];
+  const feesRequested = feeOuts.length;
   /* The caller subtracts the fee from the amount before calling — that is what
    * keeps a whole-balance send inside a single amulet. So if the fee output is
    * stripped below, the subtraction has to be undone here, in the same
@@ -1177,7 +1193,7 @@ export async function transferAmulet(
         amuletRulesInfo,
         rounds,
         featured,
-        feeOut
+        feeOuts
       );
       // Success — remember the AmuletRules contract we just used. The
       // participant accepted it, so it's the canonical one. Future
@@ -1189,7 +1205,10 @@ export async function transferAmulet(
       // Tell the caller whether the fee 2nd-output actually made it into this
       // settled transfer. It did iff the caller asked for one AND we didn't
       // strip it in a fallback retry below.
-      return { ...result, feeApplied: feeOutput != null && feeOut != null };
+      /* True only when every fee output asked for actually settled. It is
+       * all-or-nothing because the fallback strips them together — there is
+       * no state where Slay's fee lands and a partner's does not. */
+      return { ...result, feeApplied: feesRequested > 0 && feeOuts.length === feesRequested };
     } catch (err) {
       lastErr = err;
       const msg = err instanceof Error ? err.message : String(err);
@@ -1211,7 +1230,7 @@ export async function transferAmulet(
         // house_fee. Previously both were dropped together, which silently
         // stripped the fee while the caller still charged it.
         if (featured) { featured = null; continue; }
-        if (feeOut) {
+        if (feeOuts.length) {
           /* Dropping the fee output used to short-change the recipient.
            *
            * The caller hands us `amount − fee` for the recipient and the fee
@@ -1232,8 +1251,8 @@ export async function transferAmulet(
            * keep it out of the customer's transfer either. `feeApplied`
            * comes back false, the caller books no house_fee, and the amounts
            * on both sides are what the sender actually asked for.          */
-          recipientCc += feeOut.amountCc;
-          feeOut = null;
+          for (const f of feeOuts) recipientCc += f.amountCc;
+          feeOuts = [];
           continue;
         }
         throw err;
@@ -1307,14 +1326,15 @@ async function transferAmuletOnce(
     issuingMiningRounds: Array<{ round: string; disclosed: DisclosedContract }>;
   },
   featured: FeaturedBundle | null,
-  feeOutput: { receiver: string; amountCc: number } | null
+  feeOutputs: FeeOutput[]
 ): Promise<TransferAmuletResult> {
   const operator = operatorParty(env);
 
   // Only the amulet needs re-fetching per attempt — that's where the
   // race lives. The participant's ACS may have a different live cid
   // than the one we saw last time, and that's exactly what we want.
-  const totalInputCc = amountCc + (feeOutput?.amountCc ?? 0);
+  const totalInputCc =
+    amountCc + feeOutputs.reduce((sum, f) => sum + f.amountCc, 0);
   // The operator party owns 600+ contracts → a wildcard active-contracts
   // query 413s. Route operator-sourced transfers through the cache/scan
   // finder instead of findAmulet (which does the 413-prone ACS query).
@@ -1373,16 +1393,12 @@ async function transferAmuletOnce(
           amount: amountCc.toFixed(10),
           lock: null,
         },
-        ...(feeOutput
-          ? [
-              {
-                receiver: feeOutput.receiver,
-                receiverFeeRatio: "0.0000000000",
-                amount: feeOutput.amountCc.toFixed(10),
-                lock: null,
-              },
-            ]
-          : []),
+        ...feeOutputs.map((f) => ({
+          receiver: f.receiver,
+          receiverFeeRatio: "0.0000000000",
+          amount: f.amountCc.toFixed(10),
+          lock: null,
+        })),
       ],
       beneficiaries: null,
     },
@@ -1420,7 +1436,7 @@ async function transferAmuletOnce(
       recipientParty,
       operator,
       ...(featured?.provider ? [featured.provider] : []),
-      ...(feeOutput?.receiver ? [feeOutput.receiver] : []),
+      ...feeOutputs.map((f) => f.receiver),
     ])
   );
   const disclosed: DisclosedContract[] = [

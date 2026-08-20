@@ -179,6 +179,11 @@ export const txTypeEnum = pgEnum("tx_type", [
   "bet_refund",
   "bet_win",
   "house_fee",
+  /* A wallet provider's own take on a transfer they facilitated. Distinct
+   * from `house_fee` on purpose: that is Slay's revenue, this is somebody
+   * else's, and a single enum value would have every KPI query silently
+   * adding a partner's earnings to ours. */
+  "partner_fee",
   "fee_refund",
   // Real on-chain deposit/withdrawal pair. Distinct from 'topup'/'withdraw'
   // which were used for synthetic V1 credits and reverse-out flows. These

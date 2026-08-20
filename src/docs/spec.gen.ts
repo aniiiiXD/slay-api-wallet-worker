@@ -689,13 +689,13 @@ export const spec: unknown = {
           },
           "partnerFeeCc": {
             "type": "string",
-            "description": "Your own take on this transfer, computed from `GET /api/v1/config`.\n`\"0.000000\"` when you have no fee configured, or when it has no\ndestination party.\n\n**Reported, not yet moved** — see `partnerFeeCollected`.\n",
+            "description": "What you were actually PAID on this transfer — straight to the\nCanton party you configured, in this same transaction.\n\nTaken from the amount, exactly like Slay's own fee: the sender is\ndebited what they asked to send, and the recipient receives what is\nleft after both fees. A fee added on top would charge the sender\nmore than the number they passed in, which no API should do quietly.\n\n`\"0.000000\"` when you have no fee configured, when it has no\ndestination party, or when the fee outputs were stripped.\n",
             "example": "0.075000"
           },
           "partnerFeeCollected": {
             "type": "boolean",
-            "description": "Always `false` today, and stated in the response rather than left\nfor you to discover in reconciliation.\n\nThe figure above is computed and returned so you can bill against\nit, but no ledger movement has happened: collecting it means adding\nan output to the Slay send path, and that path has an open defect\nwhere a dropped fee output leaves the amount already committed.\nBuilding a second fee mechanism on top of that would reproduce the\nbug once per partner. Treat `partnerFeeCc` as an invoice line, not\nas money received.\n",
-            "example": false
+            "description": "Whether it actually moved. Normally `true`.\n\nYour fee is an extra output on the same transfer — not accrued, not\nsettled later, and never a transfer of its own. A transfer burns\nroughly 5.8 KB of synchronizer traffic (~3.5 CC) whatever it\ncarries, so paying a 0.25 CC fee separately would cost fourteen\ntimes the fee. As an extra output it costs the marginal bytes.\n\n`false` means the retry fallback stripped the fee outputs. Then the\n**whole** amount went to the recipient, neither Slay nor you were\npaid, and `partnerFeeCc` is `\"0.000000\"` to match. Bill against\nthese two fields, never against your own calculation.\n",
+            "example": true
           },
           "id": {
             "type": "string"

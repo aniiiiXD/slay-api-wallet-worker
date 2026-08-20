@@ -263,6 +263,24 @@ v1.post("/transfers", async (c) => {
 
     // 6. The transfer itself — the same service call POST /api/wallet/send
     //    uses, so an agent and a human move money through identical code.
+    /* The provider's own take on this transfer.
+     *
+     * COLLECTED NOW, not reported and left. It rides along as a third output
+     * on the same transfer — the recipient receives amount − Slay's fee −
+     * this, and the sender is debited exactly what they asked to send.
+     *
+     * Paying it in a transfer of its own was the obvious alternative and is
+     * arithmetic nonsense: a transfer burns ~5.8 KB of synchronizer traffic,
+     * about 3.5 CC, whatever it carries. A 2.5% fee on a 10 CC send is
+     * 0.25 CC — the payout would cost fourteen times the fee. As an extra
+     * output it costs the marginal bytes.
+     *
+     * `recipientParty` is null whenever the fee is not payable, and the
+     * config endpoint refuses to save a party that has no published
+     * TransferPreapproval — so an unreceivable destination is caught when
+     * somebody sets it, not when a customer's transfer fails because of it. */
+    const partnerFee = partnerFeeFor(providerCfg, amountCc);
+
     const result = await send(
       db,
       c.env,
@@ -270,33 +288,28 @@ v1.post("/transfers", async (c) => {
       to,
       ccStringToMicro(amountCc),
       typeof body.memo === "string" ? body.memo : undefined,
-      clientTxId
+      clientTxId,
+      partnerFee.recipientParty
+        ? {
+            receiver: partnerFee.recipientParty,
+            amountCc: Number(partnerFee.amountCc),
+            providerUserId: userId,
+          }
+        : null
     );
-
-    /*
-     * The provider's own take for this send.
-     *
-     * REPORTED, NOT YET MOVED. Collecting it means adding an output to the
-     * Slay send path, and that path currently has a live defect: the amount
-     * is committed on-chain before the fee outcome is known, so when the
-     * retry fallback drops the fee output the recipient receives amount-fee,
-     * the sender is charged amount-fee, and nobody collects the difference.
-     *
-     * Building a second fee mechanism into that would reproduce the bug per
-     * partner. So the figure is computed, returned and reconcilable now —
-     * partners can bill against it — and the ledger movement lands once the
-     * underlying path is fixed. A number a partner can see and check is worth
-     * considerably more than a movement nobody can verify.
-     */
-    const partnerFee = partnerFeeFor(providerCfg, amountCc);
 
     return c.json(
       {
         clientTxId,
         status: "settled",
         amountCc,
-        partnerFeeCc: partnerFee.amountCc,
-        partnerFeeCollected: false,
+        /* What was actually taken, not what was calculated. They differ when
+         * the retry fallback strips the fee outputs — in which case the whole
+         * amount went to the recipient and nobody was paid, and saying so is
+         * the difference between a partner reconciling their books and a
+         * partner billing for revenue they never received. */
+        partnerFeeCc: (result.providerFeeCc ?? 0).toFixed(6),
+        partnerFeeCollected: result.providerFeeCollected ?? false,
         id: result.transaction.id,
         createdAt: new Date().toISOString(),
       },

@@ -467,7 +467,16 @@ function useOnchainSend(env: Env | null | undefined): boolean {
 const IDEM_TAG_RE = /\s*\[idem:[A-Za-z0-9_]+\]\s*$/;
 const inFlightSends = new Map<
   string,
-  Promise<{ recipientUserId: string; transaction: { id: string } }>
+  Promise<{
+    recipientUserId: string;
+    transaction: { id: string };
+    /* Carried through the in-flight cache too. A concurrent duplicate resolves
+     * to the SAME promise as the original send, so it must report the same fee
+     * outcome — a caller that saw `undefined` here would be a retry quietly
+     * told it collected nothing. */
+    providerFeeCc?: number;
+    providerFeeCollected?: boolean;
+  }>
 >();
 
 /** Strip the `[idem:xxx]` suffix when returning a memo to the user. */
@@ -505,6 +514,27 @@ async function findExistingSendByClientTxId(
   return null;
 }
 
+/**
+ * A wallet provider's own take on this transfer.
+ *
+ * Paid as an extra output on the SAME transfer, never its own — a transfer
+ * burns roughly 5.8 KB of synchronizer traffic (~3.5 CC) regardless of what it
+ * moves, so a 0.075 CC provider fee in a transfer of its own would cost forty
+ * times what it delivers. As an extra output it costs the marginal bytes.
+ *
+ * Taken from the amount, exactly like Slay's fee: the sender is debited what
+ * they asked to send, and the recipient receives what is left. A provider fee
+ * added on top would charge the sender more than the number they passed in,
+ * which no API should do quietly.
+ */
+export type ProviderFee = {
+  /** Canton party that receives it. Validated to be receivable at config time. */
+  receiver: string;
+  amountCc: number;
+  /** Who it belongs to — used for the ledger row, not for authorisation. */
+  providerUserId: string;
+};
+
 export async function send(
   db: DB,
   env: Env,
@@ -512,7 +542,8 @@ export async function send(
   to: string,
   amountMicro: number,
   memo?: string,
-  clientTxId?: string
+  clientTxId?: string,
+  providerFee?: ProviderFee | null
 ) {
   if (amountMicro <= 0) {
     throw new HttpError(400, "Send amount must be positive.");
@@ -540,6 +571,11 @@ export async function send(
       return {
         recipientUserId: dbHit.counterpartyHandle ?? "",
         transaction: { id: dbHit.id } as never,
+        /* An idempotent replay of a transfer that already settled. Its fee, if
+         * any, was collected the first time — reporting it again would have a
+         * provider bill twice for one payment. */
+        providerFeeCc: 0,
+        providerFeeCollected: false,
       };
     }
     // Reserve the slot, populate the promise below, evict on settle.
@@ -563,7 +599,8 @@ async function doSend(
   to: string,
   amountMicro: number,
   memo: string | undefined,
-  clientTxId: string | undefined
+  clientTxId: string | undefined,
+  providerFee?: ProviderFee | null
 ) {
   const fromWallet = await getWallet(db, fromUserId);
   if (!fromWallet) throw new HttpError(404, "Sender wallet not found.");
@@ -841,7 +878,13 @@ async function doSend(
       });
     }
 
-    return { recipientUserId: "", transaction: extTx };
+    return {
+      recipientUserId: "",
+      transaction: extTx,
+      // External (self-custody) send — no fee outputs on this path at all.
+      providerFeeCc: 0,
+      providerFeeCollected: false,
+    };
   }
 
   const toWallet = await ensureWallet(db, recipient.userId);
@@ -875,7 +918,22 @@ async function doSend(
       toWallet.cantonAddress !== env.SLAY_FEES_PARTY &&
       Math.round(flatFeeCc * 1_000_000) < amountMicro; // fee must be < amount
     const feeMicro = applyFee ? Math.round(flatFeeCc * 1_000_000) : 0;
-    const netMicro = amountMicro - feeMicro; // recipient receives amount − fee
+
+    /* The provider's take rides along as a third output.
+     *
+     * Dropped silently when it would not leave the recipient anything, rather
+     * than failing the transfer: the customer asked to send money, and a
+     * provider's fee configuration is not a reason to refuse them. Slay's fee
+     * has priority because it is what pays for the rails. */
+    const providerFeeMicro =
+      providerFee && providerFee.amountCc > 0 && providerFee.receiver
+        ? Math.round(providerFee.amountCc * 1_000_000)
+        : 0;
+    const applyProviderFee =
+      providerFeeMicro > 0 && feeMicro + providerFeeMicro < amountMicro;
+    const provMicro = applyProviderFee ? providerFeeMicro : 0;
+
+    const netMicro = amountMicro - feeMicro - provMicro; // recipient gets what is left
     const amountCc = amountMicro / 1_000_000;
     const feeCc = feeMicro / 1_000_000;
     let chainTxId: string;
@@ -896,6 +954,9 @@ async function doSend(
      * Either way the sender is debited `recipientMicro + feeChargedMicro`,
      * which is always exactly the amount they asked to send. */
     let recipientMicro = netMicro;
+    /* The provider's take, once it is known to have settled. Same rule as
+     * Slay's: never booked unless it actually landed on-chain. */
+    let provChargedMicro = 0;
     try {
       // transferAmulet submits a Daml AmuletRules_Transfer via the JSON
       // Ledger API (auth = ledger-user JWT), so it accepts raw party IDs
@@ -908,13 +969,20 @@ async function doSend(
         netMicro / 1_000_000, // recipient gets amount − fee (fee taken from amount)
         memo ?? "",
         undefined,
-        applyFee ? { receiver: env.SLAY_FEES_PARTY!, amountCc: feeCc } : null
+        [
+          ...(applyFee ? [{ receiver: env.SLAY_FEES_PARTY!, amountCc: feeCc }] : []),
+          ...(applyProviderFee
+            ? [{ receiver: providerFee!.receiver, amountCc: provMicro / 1_000_000 }]
+            : []),
+        ]
       );
       chainTxId = r.updateId;
       // The retry fallback can drop the fee 2nd-output; only charge the fee if
       // it truly landed on-chain.
       feeChargedMicro = r.feeApplied ? feeMicro : 0;
-      // Fee stripped → it went to the recipient, not to slay-fees.
+      provChargedMicro = r.feeApplied ? provMicro : 0;
+      // Fees stripped → they went to the recipient, not to slay-fees or the
+      // provider. All-or-nothing: the fallback drops them together.
       recipientMicro = r.feeApplied ? netMicro : amountMicro;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -945,7 +1013,7 @@ async function doSend(
     // what left their amulet on-chain.
     await db
       .update(schema.wallets)
-      .set({ balance: sql`${schema.wallets.balance} - ${recipientMicro + feeChargedMicro}` })
+      .set({ balance: sql`${schema.wallets.balance} - ${recipientMicro + feeChargedMicro + provChargedMicro}` })
       .where(eq(schema.wallets.id, fromWallet.id));
 
     await db
@@ -967,7 +1035,7 @@ async function doSend(
         .where(and(eq(schema.wallets.id, toWallet.id), isNotNull(schema.wallets.onChainWatermark)));
       await db
         .update(schema.wallets)
-        .set({ onChainWatermark: sql`${schema.wallets.onChainWatermark} - ${recipientMicro + feeChargedMicro}` })
+        .set({ onChainWatermark: sql`${schema.wallets.onChainWatermark} - ${recipientMicro + feeChargedMicro + provChargedMicro}` })
         .where(and(eq(schema.wallets.id, fromWallet.id), isNotNull(schema.wallets.onChainWatermark)));
     }
 
@@ -1027,7 +1095,31 @@ async function doSend(
       });
     }
 
-    return { recipientUserId: recipient.userId, transaction: recvTxOnchain };
+    /* The provider's row: their revenue, kept distinct from `house_fee` so
+     * Slay's takings and a partner's are never summed together by accident.
+     * Written only when the output settled — no phantom earnings. */
+    if (provChargedMicro > 0) {
+      await db.insert(schema.transactions).values({
+        id: newId(),
+        walletId: fromWallet.id,
+        userId: fromUserId,
+        type: "partner_fee",
+        amount: -provChargedMicro,
+        status: "confirmed",
+        counterpartyHandle: "provider",
+        memo: `Provider fee (${provChargedMicro / 1_000_000} CC)`,
+        refType: chainTxRefType,
+        refId: chainTxId,
+        chainUpdateId: chainUpdateIdOf(chainTxId),
+      });
+    }
+
+    return {
+      recipientUserId: recipient.userId,
+      transaction: recvTxOnchain,
+      providerFeeCc: provChargedMicro / 1_000_000,
+      providerFeeCollected: provChargedMicro > 0,
+    };
   }
   // Fall through to the original Postgres-first / best-effort-chain path.
 
@@ -1132,7 +1224,13 @@ async function doSend(
     }
   }
 
-  return { recipientUserId: recipient.userId, transaction: recvTx };
+  return {
+    recipientUserId: recipient.userId,
+    transaction: recvTx,
+    // Postgres-first legacy path — nothing on-chain, so no provider fee.
+    providerFeeCc: 0,
+    providerFeeCollected: false,
+  };
 }
 
 async function getHandleForUser(

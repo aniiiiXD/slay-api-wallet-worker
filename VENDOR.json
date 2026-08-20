@@ -17,7 +17,7 @@
     {
       "path": "src/agents/v1.ts",
       "upstream": "src/agents/v1.ts",
-      "localSha": "ad60cda7b9fcb3a99a7e3bbfca71f35e5a8b7db034526f25dbccd779e85e6e82",
+      "localSha": "0a161827537453a580f3699bd148862e9809f6206232a5cd484faa9dfb0154b3",
       "upstreamSha": "e8fbf74764bffa6c0d193aa1f3bc0c5f36fcd38d45245842aafe14e5fa8f9aee"
     },
     {
@@ -137,8 +137,8 @@
     {
       "path": "src/db/schema.ts",
       "upstream": "src/db/schema.ts",
-      "localSha": "cae343b02df2e5011c3c5fab0a14eb2745832a1e4e7d82bdcee8ab447593b8e2",
-      "upstreamSha": "cae343b02df2e5011c3c5fab0a14eb2745832a1e4e7d82bdcee8ab447593b8e2"
+      "localSha": "799c643118ea1ca2570f2c65be43f319537685963f831dd3f2c3cbecb24d6cf6",
+      "upstreamSha": "799c643118ea1ca2570f2c65be43f319537685963f831dd3f2c3cbecb24d6cf6"
     },
     {
       "path": "src/docs/render.ts",
@@ -273,6 +273,12 @@
       "upstreamSha": "7238a2e2b747f6f490b4829ecf388245444c8fdcb000bde4b9b0b5856748a253"
     },
     {
+      "path": "src/provider/config.ts",
+      "upstream": "src/provider/config.ts",
+      "localSha": "a82b1d5d0fb72f1853015ca476b0fbdd0b1fdd368d7305e607eb794424e46693",
+      "upstreamSha": "a82b1d5d0fb72f1853015ca476b0fbdd0b1fdd368d7305e607eb794424e46693"
+    },
+    {
       "path": "src/registry-auth.ts",
       "upstream": "src/registry-auth.ts",
       "localSha": "ed1038718a2ff4225b06d768a87ef93d9c9ea9d70ef84527bfe2e1d4cda52f3f",
@@ -287,8 +293,8 @@
     {
       "path": "src/splice/amulet.ts",
       "upstream": "src/splice/amulet.ts",
-      "localSha": "9d1df685990ec59c71e1ee3beafb0ef72ba72caba656f93c2c0212f76cd65fa7",
-      "upstreamSha": "9d1df685990ec59c71e1ee3beafb0ef72ba72caba656f93c2c0212f76cd65fa7"
+      "localSha": "e39da98bef446860eeb356392f5c4ca5929dec1d386e6953308e8e14a0bd26af",
+      "upstreamSha": "e39da98bef446860eeb356392f5c4ca5929dec1d386e6953308e8e14a0bd26af"
     },
     {
       "path": "src/splice/client.ts",
@@ -365,10 +371,10 @@
     {
       "path": "src/wallet/service.ts",
       "upstream": "src/wallet/service.ts",
-      "localSha": "c2bcb6d1f2e00d1124b4ff1e796771ee49c916f89def3d91caea8df4192a39eb",
-      "upstreamSha": "c2bcb6d1f2e00d1124b4ff1e796771ee49c916f89def3d91caea8df4192a39eb"
+      "localSha": "ac39382c0474e3208212bfa26fa685ba33d781f7f211dd751701087c4514c434",
+      "upstreamSha": "ac39382c0474e3208212bfa26fa685ba33d781f7f211dd751701087c4514c434"
     }
   ],
-  "acceptedAt": "2026-08-20T03:57:51.788Z",
+  "acceptedAt": "2026-08-20T04:12:19.906Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }
