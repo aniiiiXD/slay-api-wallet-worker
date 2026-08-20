@@ -17,7 +17,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { Env } from "../env";
 import { createDb } from "../db";
 import * as schema from "../db/schema";
-import { HttpError, microToCc, send } from "../wallet/service";
+import { HttpError, microToCc, microToCcString, send } from "../wallet/service";
 import { agentAuth, type AgentVariables } from "../middleware/agentAuth";
 import {
   assertTokenEnabled,
@@ -130,13 +130,13 @@ v1.get("/balance", async (c) => {
 
   if (!w) return fail(c, 404, "not_found", "No wallet for this account.");
 
-  const balance = microToCc(w.balance ?? 0);
-  const locked = microToCc(w.locked ?? 0);
+  const balance = microToCcString(w.balance ?? 0);
+  const locked = microToCcString(w.locked ?? 0);
 
   return c.json({
     balanceCc: balance,
     lockedCc: locked,
-    availableCc: balance - locked,
+    availableCc: microToCcString((w.balance ?? 0) - (w.locked ?? 0)),
     cantonAddress: w.cantonAddress,
   });
 });
@@ -163,7 +163,7 @@ v1.get("/transactions", async (c) => {
     items: rows.map((t) => ({
       id: t.id,
       type: t.type,
-      amountCc: microToCc(t.amount ?? 0),
+      amountCc: microToCcString(t.amount ?? 0),
       status: t.status,
       memo: stripIdem(t.memo),
       clientTxId: readIdem(t.memo),
@@ -357,7 +357,7 @@ v1.get("/transfers/:clientTxId", async (c) => {
   return c.json({
     clientTxId: wanted,
     status: row.status,
-    amountCc: microToCc(row.amount ?? 0),
+    amountCc: microToCcString(row.amount ?? 0),
     createdAt: row.createdAt.toISOString(),
   });
 });

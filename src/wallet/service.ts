@@ -70,6 +70,29 @@ export const ccToMicro = (cc: number): number =>
 export const microToCc = (micro: number): number =>
   micro / MICRO_PER_CC;
 
+/**
+ * Micro-CC to the decimal STRING that leaves the API.
+ *
+ * `microToCc` divides, which produces a float — and a float is exactly what
+ * the reference tells integrators never to hold money in. The API was
+ * serialising balances as JSON numbers while its own spec typed them as
+ * strings and the SDK declared `type Cc = string`, so anyone following the
+ * documentation got a number where they expected "87.105300".
+ *
+ * This formats from the integer directly rather than dividing and rounding:
+ * 1234567 micro is "1.234567" by construction, with no representable-value
+ * question at any point. Always six decimal places, so string comparison and
+ * equality behave the way a caller expects.
+ */
+export const microToCcString = (micro: number): string => {
+  const n = Math.trunc(micro);
+  const neg = n < 0;
+  const abs = Math.abs(n);
+  const whole = Math.floor(abs / MICRO_PER_CC);
+  const frac = String(abs % MICRO_PER_CC).padStart(6, "0");
+  return `${neg ? "-" : ""}${whole}.${frac}`;
+};
+
 export const newId = () => crypto.randomUUID();
 
 /* ------------------------------------------------------------------ */

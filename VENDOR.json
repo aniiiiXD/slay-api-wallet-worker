@@ -17,8 +17,8 @@
     {
       "path": "src/agents/v1.ts",
       "upstream": "src/agents/v1.ts",
-      "localSha": "0a161827537453a580f3699bd148862e9809f6206232a5cd484faa9dfb0154b3",
-      "upstreamSha": "e8fbf74764bffa6c0d193aa1f3bc0c5f36fcd38d45245842aafe14e5fa8f9aee"
+      "localSha": "96076cfb12adc4dde61137dbe2aba09330dc5af37cb3c8b1f803033b15b2a743",
+      "upstreamSha": "131bb8e623f21871cdf09cab68312ba9e8c266b300bce35aa143f91ea32ffdf4"
     },
     {
       "path": "src/canton/client.ts",
@@ -377,10 +377,10 @@
     {
       "path": "src/wallet/service.ts",
       "upstream": "src/wallet/service.ts",
-      "localSha": "ac39382c0474e3208212bfa26fa685ba33d781f7f211dd751701087c4514c434",
-      "upstreamSha": "ac39382c0474e3208212bfa26fa685ba33d781f7f211dd751701087c4514c434"
+      "localSha": "7337d254350d40ebd058a04a67864ca0eff91f5424a3d2533943fe7f40fea074",
+      "upstreamSha": "7337d254350d40ebd058a04a67864ca0eff91f5424a3d2533943fe7f40fea074"
     }
   ],
-  "acceptedAt": "2026-08-20T12:50:41.382Z",
+  "acceptedAt": "2026-08-20T14:57:58.049Z",
   "_owned": "openapi.yaml and src/docs/spec.gen.ts are OWNED by this repo, not vendored: the spec names this Worker's own server URL and its deployment story. Tracking them against upstream would report a difference that is supposed to be there, and a check that cries wolf gets ignored right before it matters."
 }
